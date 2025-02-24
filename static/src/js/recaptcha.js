@@ -30,9 +30,15 @@ const TurnstileValidator = {
                 sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
                 theme: "light",
                 callback: (token) => {
+                    console.log("[Turnstile] Token generado:", token);
                     document.querySelector('#cf-turnstile-response').value = token;
+                },
+                errorCallback: () => {
+                    console.error("[Turnstile] Error al generar el token");
                 }
             });
+        } else {
+            console.warn("[Turnstile] La librería no está cargada correctamente.");
         }
     },
 
