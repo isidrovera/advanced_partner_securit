@@ -2,8 +2,8 @@
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
-        <!-- Corregir el XPath - usar la raíz del template en lugar de buscar un form que no existe -->
-        <xpath expr="." position="before">
+        <!-- Añadir script de reCAPTCHA en una ubicación válida -->
+        <xpath expr="//div[hasclass('field-confirm_password')]" position="before">
             <t t-if="not debug">
                 <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
             </t>
@@ -38,9 +38,9 @@
         </xpath>
     </template>
 
-    <!-- Página de términos y condiciones -->
-    <template id="terms_page">
-        <t t-call="web.layout">
+    <!-- Página de términos y condiciones (si se necesita) -->
+    <template id="terms_page" name="Términos y Condiciones">
+        <t t-call="website.layout">
             <div class="container mt-4 mb-5">
                 <h1 class="mb-4">Términos y Condiciones</h1>
                 <div class="card">
@@ -94,6 +94,4 @@
             </div>
         </t>
     </template>
-
-    <!-- Controlador y rutas - Añadir en un archivo Python separado -->
 </odoo>
