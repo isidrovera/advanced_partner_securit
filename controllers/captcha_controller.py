@@ -49,8 +49,9 @@ class AuthSignupExtended(AuthSignupHome):
         return qcontext
 
     def validate_captcha(self, captcha_response):
-        """Validar la respuesta de reCAPTCHA"""
+        """Validar la respuesta de reCAPTCHA con mejor manejo de errores y logging"""
         if not captcha_response:
+            _logger.warning("No se proporcionó respuesta de reCAPTCHA")
             return False
         
         # Obtener la clave secreta de reCAPTCHA
@@ -63,18 +64,50 @@ class AuthSignupExtended(AuthSignupHome):
         
         try:
             # Verificar la respuesta de reCAPTCHA con Google
+            _logger.info("Validando reCAPTCHA con respuesta: %s", captcha_response[:15] + "..." if captcha_response and len(captcha_response) > 15 else captcha_response)
+            
             response = requests.post(
                 'https://www.google.com/recaptcha/api/siteverify',
                 data={
                     'secret': secret_key,
                     'response': captcha_response,
                     'remoteip': request.httprequest.remote_addr
-                }
+                },
+                timeout=5  # Agregar timeout para manejar problemas de red
             )
+            
             result = response.json()
+            _logger.info("Resultado de validación reCAPTCHA: %s", result)
+            
+            # Manejar diferentes casos de error
+            if not result.get('success', False):
+                error_codes = result.get('error-codes', [])
+                if error_codes:
+                    _logger.warning("Códigos de error reCAPTCHA: %s", error_codes)
+                    
+                    # Mapeo de errores para mejor diagnóstico
+                    error_messages = {
+                        'missing-input-secret': 'Falta el parámetro secreto.',
+                        'invalid-input-secret': 'El parámetro secreto no es válido o tiene errores de formato.',
+                        'missing-input-response': 'Falta el parámetro de respuesta.',
+                        'invalid-input-response': 'El parámetro de respuesta no es válido o tiene errores de formato.',
+                        'bad-request': 'La solicitud no es válida o no tiene el formato correcto.',
+                        'timeout-or-duplicate': 'La respuesta ya no es válida: es demasiado antigua o se usó anteriormente.'
+                    }
+                    
+                    for error_code in error_codes:
+                        if error_code in error_messages:
+                            _logger.warning("Error reCAPTCHA: %s", error_messages[error_code])
+            
             return result.get('success', False)
+        except requests.exceptions.Timeout:
+            _logger.error("Timeout al verificar reCAPTCHA")
+            return False
+        except requests.exceptions.RequestException as e:
+            _logger.exception("Error de conexión al verificar reCAPTCHA: %s", str(e))
+            return False
         except Exception as e:
-            _logger.exception("Error validando reCAPTCHA: %s", str(e))
+            _logger.exception("Error inesperado al validar reCAPTCHA: %s", str(e))
             return False
 
     def validate_ip_restriction(self):

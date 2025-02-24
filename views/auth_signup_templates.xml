@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
-        <!-- Añadir script de reCAPTCHA en una ubicación válida -->
+    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+        <!-- Añadir script de reCAPTCHA con renderizado explícito -->
         <xpath expr="//div[hasclass('field-confirm_password')]" position="before">
-            <t t-if="not debug">
-                <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
-            </t>
+            <script type="text/javascript">
+                var onloadCallback = function() {
+                    grecaptcha.render('recaptcha-container', {
+                        'sitekey': '<t t-esc="request.env[\'ir.config_parameter\'].sudo().get_param(\'recaptcha.site_key\')"/>',
+                        'theme': 'light'
+                    });
+                };
+            </script>
         </xpath>
 
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
-            <!-- Captcha - Usando directamente el parámetro del sistema en lugar de website.recaptcha_site_key -->
-            <t t-set="recaptcha_site_key" t-value="request.env['ir.config_parameter'].sudo().get_param('recaptcha.site_key')"/>
+            <!-- Captcha con renderizado explícito -->
             <div class="mb-3 field-captcha">
-                <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
+                <div id="recaptcha-container"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
@@ -36,6 +40,11 @@
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
+        </xpath>
+        
+        <!-- Añadir el script de reCAPTCHA al final del formulario para que se cargue después de que exista el div -->
+        <xpath expr="//button" position="after">
+            <script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&amp;render=explicit" async="async" defer="defer"></script>
         </xpath>
     </template>
 
