@@ -28,10 +28,16 @@
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
-            
-            <!-- Script de Turnstile -->
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
         </xpath>
+    </template>
+
+    <!-- Agregar el script de Turnstile en el lugar correcto para evitar CSP -->
+    <template id="add_turnstile_script" name="Turnstile Script">
+        <t t-call="website.layout">
+            <head>
+                <script t-att-src="'https://challenges.cloudflare.com/turnstile/v0/api.js'" async="async" defer="defer"></script>
+            </head>
+        </t>
     </template>
 
 
