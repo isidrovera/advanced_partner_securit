@@ -61,39 +61,51 @@ const turnstileValidator = {
     },
 
     setupTurnstileRendering: function() {
-        // Implementar renderización manual con múltiples intentos
         this.renderAttempts = 0;
-        this.maxRenderAttempts = 5;
+        this.maxRenderAttempts = 3;
+        this.rendered = false; // Bandera para evitar renderizaciones múltiples
     },
 
     renderTurnstile: function() {
-        const container = document.querySelector('#cf-turnstile-container');
-        
-        if (!container) {
-            TurnstileLogger.log('Contenedor de Turnstile no encontrado', 'warn');
-            return;
-        }
-
-        // Verificar si Turnstile ya está renderizado
-        if (container.querySelector('.cf-turnstile-widget')) {
+        // Si ya se renderizó, salir
+        if (this.rendered) {
             TurnstileLogger.log('Turnstile ya renderizado', 'info');
             return;
         }
 
+        const containers = document.querySelectorAll('#cf-turnstile-container');
+        
+        if (containers.length === 0) {
+            TurnstileLogger.log('Contenedor de Turnstile no encontrado', 'warn');
+            return;
+        }
+
+        // Si hay más de un contenedor, eliminar duplicados
+        if (containers.length > 1) {
+            for (let i = 1; i < containers.length; i++) {
+                containers[i].remove();
+            }
+        }
+
+        const container = containers[0];
+
         try {
-            // Verificar si la función turnstile está disponible
+            // Limpiar cualquier renderización previa
+            container.innerHTML = '';
+
             if (typeof turnstile !== 'undefined') {
                 turnstile.render('#cf-turnstile-container', {
                     sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
                     theme: "light",
                     callback: (token) => {
-                        // Establecer el valor del token en un campo oculto
                         const hiddenInput = document.querySelector('#cf-turnstile-response');
                         if (hiddenInput) {
                             hiddenInput.value = token;
                         }
                     }
                 });
+
+                this.rendered = true; // Marcar como renderizado
                 TurnstileLogger.log('Turnstile renderizado exitosamente');
             } else {
                 this.retryRenderTurnstile();
@@ -107,7 +119,7 @@ const turnstileValidator = {
     retryRenderTurnstile: function() {
         this.renderAttempts++;
         
-        if (this.renderAttempts < this.maxRenderAttempts) {
+        if (this.renderAttempts < this.maxRenderAttempts && !this.rendered) {
             TurnstileLogger.log(`Reintentando renderización (Intento ${this.renderAttempts})`, 'warn');
             setTimeout(() => this.renderTurnstile(), 1000 * this.renderAttempts);
         } else {
