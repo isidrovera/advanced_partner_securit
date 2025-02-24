@@ -2,97 +2,266 @@
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+        <!-- Agregar el script de reCAPTCHA en el lugar correcto -->
+        <xpath expr="//form" position="before">
+            <t t-if="not debug">
+                <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
+            </t>
+        </xpath>
+
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
             <!-- Captcha -->
-            <div
-                class="mb-3 field-captcha">
-                <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
-                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2"
-                    role="alert">
+            <div class="mb-3 field-captcha">
+                <div class="g-recaptcha" t-att-data-sitekey="website.recaptcha_site_key" data-theme="light"></div>
+                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
-            </div> Copy <!--
-            Términos y condiciones -->
-        <div
-                class="mb-3 field-terms">
+            </div>
+
+            <!-- Términos y condiciones -->
+            <div class="mb-3 field-terms">
                 <div class="form-check">
-                    <input type="checkbox" name="accept_terms" id="accept_terms"
-                        class="form-check-input" required="required" />
-                    <label for="accept_terms" class="form-check-label"> Acepto los <a href="/terms"
-                            target="_blank">términos y condiciones</a>
+                    <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
+                    <label for="accept_terms" class="form-check-label"> 
+                        Acepto los <a href="/page/terminos" target="_blank">términos y condiciones</a>
                     </label>
                 </div>
-                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2"
-                    role="alert">
+                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('terms')" />
                 </div>
             </div>
 
             <!-- Mensaje de verificación de correo -->
-        <div
-                class="alert alert-info mb-3">
-                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu
-            correo electrónico. </div>
+            <div class="alert alert-info mb-3">
+                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
+            </div>
         </xpath>
     </template>
 
-    
+    <!-- Controller Python para manejar el registro y la verificación -->
+    <record id="auth_signup_controller_extended" model="ir.ui.view">
+        <field name="name">auth_signup.controllers.main.extended</field>
+        <field name="model">ir.ui.view</field>
+        <field name="inherit_id" ref="auth_signup.auth_signup_controllers_main"/>
+        <field name="arch" type="xml">
+            <xpath expr="//class[@name='Home']" position="inside">
+                <function name="web_auth_signup" position="replace">
+                    def web_auth_signup(self, *args, **kw):
+                        qcontext = self.get_auth_signup_qcontext()
+                        
+                        # Verificar reCAPTCHA
+                        if request.httprequest.method == 'POST':
+                            # Verificar términos y condiciones
+                            if not qcontext.get('accept_terms'):
+                                qcontext['error'] = qcontext.get('error', {})
+                                qcontext['error']['terms'] = _("Debes aceptar los términos y condiciones para continuar.")
+                            
+                            # Verificar reCAPTCHA
+                            recaptcha_response = request.params.get('g-recaptcha-response')
+                            if not recaptcha_response:
+                                qcontext['error'] = qcontext.get('error', {})
+                                qcontext['error']['captcha'] = _("Por favor, completa la verificación reCAPTCHA.")
+                            else:
+                                # Verificación del reCAPTCHA con Google
+                                try:
+                                    secret_key = request.env['ir.config_parameter'].sudo().get_param('recaptcha.secret_key')
+                                    verify_url = 'https://www.google.com/recaptcha/api/siteverify'
+                                    data = {
+                                        'secret': secret_key,
+                                        'response': recaptcha_response,
+                                        'remoteip': request.httprequest.remote_addr
+                                    }
+                                    response = requests.post(verify_url, data=data)
+                                    result = response.json()
+                                    
+                                    if not result.get('success'):
+                                        qcontext['error'] = qcontext.get('error', {})
+                                        qcontext['error']['captcha'] = _("La verificación reCAPTCHA ha fallado. Por favor, inténtalo de nuevo.")
+                                except Exception as e:
+                                    _logger.error("Error al verificar reCAPTCHA: %s", e)
+                                    qcontext['error'] = qcontext.get('error', {})
+                                    qcontext['error']['captcha'] = _("Error en la verificación. Por favor, inténtalo más tarde.")
+                        
+                        # Continuar con la lógica original si no hay errores
+                        if request.httprequest.method == 'POST' and not qcontext.get('error'):
+                            try:
+                                self.do_signup(qcontext)
+                                # Enviar correo de verificación
+                                user = request.env['res.users'].sudo().search([('login', '=', qcontext.get('login'))])
+                                if user:
+                                    user.partner_id.sudo().write({'email_verified': False})
+                                    template = request.env.ref('auth_signup.mail_template_user_signup_account_created')
+                                    template.sudo().with_context(
+                                        lang=user.lang,
+                                        verification_url=self._get_verification_url(user),
+                                    ).send_mail(user.id, force_send=True)
+                                return super(Home, self).web_login(*args, **kw)
+                            except (UserError, SignupError) as e:
+                                qcontext['error'] = e.name or e.value
+                        
+                        qcontext['recaptcha_site_key'] = request.env['ir.config_parameter'].sudo().get_param('recaptcha.site_key')
+                        response = request.render('auth_signup.signup', qcontext)
+                        response.headers['X-Frame-Options'] = 'DENY'
+                        return response
+                </function>
+                
+                <!-- Método para generar URL de verificación -->
+                <function name="_get_verification_url" position="append">
+                    def _get_verification_url(self, user):
+                        base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
+                        token = user.partner_id.signup_token or ''
+                        return "%s/web/verify-email?token=%s" % (base_url, token)
+                </function>
+                
+                <!-- Ruta para verificación de correo -->
+                <function name="verify_email" position="append">
+                    @http.route('/web/verify-email', type='http', auth='public', website=True)
+                    def verify_email(self, token=None, **kw):
+                        if not token:
+                            return request.render('auth_signup.invalid_token_signup')
+                        
+                        partner = request.env['res.partner'].sudo().search([('signup_token', '=', token)])
+                        if not partner:
+                            return request.render('auth_signup.invalid_token_signup')
+                        
+                        partner.sudo().write({'email_verified': True})
+                        return request.redirect('/web/login?verification=success')
+                </function>
+            </xpath>
+        </field>
+    </record>
 
-    <!-- Heredar y modificar la plantilla de términos y condiciones -->
-    <template id="terms_page">
-        <t t-call="web.layout">
-            <div class="container mt-4 mb-5">
-                <h1 class="mb-4">Términos y Condiciones</h1>
-                <div class="card">
-                    <div class="card-body">
-                        <h3>1. Aceptación de los Términos</h3>
-                        <p>Al registrarse y utilizar nuestro servicio, usted acepta estos términos y
-                            condiciones en su totalidad.</p>
+    <!-- Página de términos y condiciones -->
+    <record id="terms_page" model="website.page">
+        <field name="name">Términos y Condiciones</field>
+        <field name="url">/page/terminos</field>
+        <field name="website_published">True</field>
+        <field name="type">qweb</field>
+        <field name="key">website.terms_page</field>
+        <field name="arch" type="xml">
+            <t t-name="website.terms_page">
+                <t t-call="website.layout">
+                    <div class="container mt-4 mb-5">
+                        <h1 class="mb-4">Términos y Condiciones</h1>
+                        <div class="card">
+                            <div class="card-body">
+                                <h3>1. Aceptación de los Términos</h3>
+                                <p>Al registrarse y utilizar nuestro servicio, usted acepta estos términos y
+                                    condiciones en su totalidad.</p>
 
-                        <h3>2. Descripción del Servicio</h3>
-                        <p>Proporcionamos una plataforma para [descripción de su servicio]. El
-                            servicio puede cambiar con el tiempo.</p>
+                                <h3>2. Descripción del Servicio</h3>
+                                <p>Proporcionamos una plataforma para gestión empresarial basada en Odoo. El
+                                    servicio puede cambiar con el tiempo según las actualizaciones del sistema.</p>
 
-                        <h3>3. Registro y Seguridad</h3>
-                        <p>Usted es responsable de mantener la confidencialidad de su cuenta y
-                            contraseña. Notifíquenos de inmediato si cree que su cuenta ha sido
-                            comprometida.</p>
+                                <h3>3. Registro y Seguridad</h3>
+                                <p>Usted es responsable de mantener la confidencialidad de su cuenta y
+                                    contraseña. Notifíquenos de inmediato si cree que su cuenta ha sido
+                                    comprometida.</p>
 
-                        <h3>4. Privacidad</h3>
-                        <p>Su privacidad es importante para nosotros. Consulte nuestra Política de
-                            Privacidad para entender cómo recopilamos, usamos y protegemos sus
-                            datos.</p>
+                                <h3>4. Privacidad</h3>
+                                <p>Su privacidad es importante para nosotros. Consulte nuestra Política de
+                                    Privacidad para entender cómo recopilamos, usamos y protegemos sus
+                                    datos.</p>
 
-                        <h3>5. Conducta del Usuario</h3>
-                        <p>Está prohibido usar el servicio para actividades ilegales o no
-                            autorizadas. Nos reservamos el derecho de suspender cuentas que violen
-                            estas condiciones.</p>
+                                <h3>5. Conducta del Usuario</h3>
+                                <p>Está prohibido usar el servicio para actividades ilegales o no
+                                    autorizadas. Nos reservamos el derecho de suspender cuentas que violen
+                                    estas condiciones.</p>
 
-                        <h3>6. Propiedad Intelectual</h3>
-                        <p>Todo el contenido y software asociado con el servicio está protegido por
-                            leyes de propiedad intelectual.</p>
+                                <h3>6. Propiedad Intelectual</h3>
+                                <p>Todo el contenido y software asociado con el servicio está protegido por
+                                    leyes de propiedad intelectual.</p>
 
-                        <h3>7. Terminación</h3>
-                        <p>Podemos terminar o suspender su acceso al servicio inmediatamente, sin
-                            previo aviso, por cualquier razón.</p>
+                                <h3>7. Terminación</h3>
+                                <p>Podemos terminar o suspender su acceso al servicio inmediatamente, sin
+                                    previo aviso, por cualquier razón.</p>
 
-                        <h3>8. Limitación de Responsabilidad</h3>
-                        <p>No seremos responsables por daños indirectos, incidentales, especiales,
-                            consecuentes o punitivos resultantes del uso de nuestro servicio.</p>
+                                <h3>8. Limitación de Responsabilidad</h3>
+                                <p>No seremos responsables por daños indirectos, incidentales, especiales,
+                                    consecuentes o punitivos resultantes del uso de nuestro servicio.</p>
 
-                        <h3>9. Cambios en los Términos</h3>
-                        <p>Podemos modificar estos términos en cualquier momento. Es su
-                            responsabilidad revisarlos periódicamente.</p>
+                                <h3>9. Cambios en los Términos</h3>
+                                <p>Podemos modificar estos términos en cualquier momento. Es su
+                                    responsabilidad revisarlos periódicamente.</p>
 
-                        <h3>10. Contacto</h3>
-                        <p>Si tiene preguntas sobre estos términos, contáctenos a través de [correo
-                            electrónico de contacto].</p>
+                                <h3>10. Contacto</h3>
+                                <p>Si tiene preguntas sobre estos términos, contáctenos a través de soporte@miempresa.com.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-center mt-4">
+                            <a href="/web/signup" class="btn btn-primary">Volver al Registro</a>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </field>
+    </record>
+
+    <!-- Configuración para reCAPTCHA -->
+    <record id="recaptcha_config" model="ir.ui.view">
+        <field name="name">website.config.settings.recaptcha</field>
+        <field name="model">website.config.settings</field>
+        <field name="inherit_id" ref="website.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@id='website_settings']" position="inside">
+                <div class="col-12 col-lg-6 o_setting_box">
+                    <div class="o_setting_left_pane">
+                        <field name="recaptcha_enabled"/>
+                    </div>
+                    <div class="o_setting_right_pane">
+                        <label for="recaptcha_enabled"/>
+                        <div class="text-muted">
+                            Habilitar reCAPTCHA para el formulario de registro
+                        </div>
+                        <div class="mt-2" attrs="{'invisible': [('recaptcha_enabled', '=', False)]}">
+                            <field name="recaptcha_site_key" placeholder="Clave del sitio reCAPTCHA"/>
+                            <field name="recaptcha_secret_key" placeholder="Clave secreta reCAPTCHA"/>
+                        </div>
                     </div>
                 </div>
-                <div class="d-flex justify-content-center mt-4">
-                    <a href="/web/signup" class="btn btn-primary">Volver al Registro</a>
-                </div>
-            </div>
-        </t>
-    </template>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Ampliar modelo de res.partner para verificación de email -->
+    <record id="res_partner_email_verification" model="ir.model.fields">
+        <field name="name">email_verified</field>
+        <field name="model">res.partner</field>
+        <field name="type">boolean</field>
+        <field name="field_description">Email Verificado</field>
+        <field name="default">False</field>
+    </record>
+
+    <!-- Ampliar modelo de configuración del sitio web -->
+    <record id="website_config_recaptcha" model="ir.model.fields">
+        <field name="name">recaptcha_enabled</field>
+        <field name="model">website.config.settings</field>
+        <field name="type">boolean</field>
+        <field name="field_description">reCAPTCHA Habilitado</field>
+    </record>
+
+    <record id="website_config_recaptcha_site_key" model="ir.model.fields">
+        <field name="name">recaptcha_site_key</field>
+        <field name="model">website.config.settings</field>
+        <field name="type">char</field>
+        <field name="field_description">reCAPTCHA Site Key</field>
+    </record>
+
+    <record id="website_config_recaptcha_secret_key" model="ir.model.fields">
+        <field name="name">recaptcha_secret_key</field>
+        <field name="model">website.config.settings</field>
+        <field name="type">char</field>
+        <field name="field_description">reCAPTCHA Secret Key</field>
+    </record>
+
+    <!-- Definir los parámetros del sistema para reCAPTCHA -->
+    <record id="system_parameter_recaptcha_site_key" model="ir.config_parameter">
+        <field name="key">recaptcha.site_key</field>
+        <field name="value">TU_CLAVE_DEL_SITIO_RECAPTCHA</field>
+    </record>
+
+    <record id="system_parameter_recaptcha_secret_key" model="ir.config_parameter">
+        <field name="key">recaptcha.secret_key</field>
+        <field name="value">TU_CLAVE_SECRETA_RECAPTCHA</field>
+    </record>
 </odoo>
