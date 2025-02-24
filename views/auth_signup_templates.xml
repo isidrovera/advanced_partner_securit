@@ -2,12 +2,12 @@
 <odoo>
       <!-- Heredar y modificar la plantilla de registro -->
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
-        <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
+        <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
             <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
                 <label class="form-label">Verificación de Seguridad</label>
                 <div class="cf-turnstile" 
-                     data-sitekey="TU_SITE_KEY" 
+                     data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK" 
                      data-theme="light">
                 </div>
                 
@@ -48,7 +48,6 @@
             </div>
         </xpath>
     </template>
-
 
 
     <!-- Página de términos y condiciones (si se necesita) -->
