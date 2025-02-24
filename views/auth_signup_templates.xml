@@ -32,7 +32,7 @@
         <t t-call="website.layout">
             <t t-set="title">Registro</t>
             <head>
-                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
             </head>
         </t>
     </template>
