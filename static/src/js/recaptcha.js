@@ -1,8 +1,9 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
+import { onMounted } from "@odoo/owl";
 
-export const recaptchaValidator = {
+const recaptchaValidator = {
     /**
      * Validar la respuesta de reCAPTCHA antes de enviar el formulario
      * @param {Event} ev - Evento de envío del formulario
@@ -15,6 +16,12 @@ export const recaptchaValidator = {
         const recaptchaElement = form.querySelector('.g-recaptcha');
         if (!recaptchaElement) return true;
         
+        // Verificar si grecaptcha está disponible
+        if (typeof grecaptcha === 'undefined') {
+            console.error('La API de reCAPTCHA no está cargada');
+            return true; // Permitir el envío para no bloquear al usuario
+        }
+        
         // Obtener la respuesta de reCAPTCHA
         const recaptchaResponse = grecaptcha.getResponse();
         
@@ -26,8 +33,9 @@ export const recaptchaValidator = {
             let errorContainer = form.querySelector('.recaptcha-error');
             if (!errorContainer) {
                 errorContainer = document.createElement('div');
-                errorContainer.classList.add('alert', 'alert-danger', 'recaptcha-error');
-                recaptchaElement.after(errorContainer);
+                errorContainer.classList.add('alert', 'alert-danger', 'mt-2', 'recaptcha-error');
+                const parentDiv = recaptchaElement.closest('.field-captcha') || recaptchaElement.parentNode;
+                parentDiv.appendChild(errorContainer);
             }
             
             // Mostrar mensaje de error
@@ -43,22 +51,47 @@ export const recaptchaValidator = {
      * Inicializar listeners de reCAPTCHA en formularios de registro
      */
     init: function () {
-        document.addEventListener('DOMContentLoaded', () => {
-            // Seleccionar todos los formularios de registro
-            const signupForms = document.querySelectorAll('#signup');
+        // Usar una función más robusta para determinar cuando el DOM está listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.attachValidators());
+        } else {
+            this.attachValidators();
+        }
+    },
+    
+    attachValidators: function() {
+        // Buscar formularios por clase o atributo relevante, no solo por ID
+        const signupForms = document.querySelectorAll('form.oe_signup_form, form[action="/web/signup"]');
+        
+        if (signupForms.length) {
+            console.log('Se encontraron', signupForms.length, 'formularios de registro');
             
             signupForms.forEach(form => {
-                form.addEventListener('submit', this.validateRecaptcha);
+                // Verificar si ya tiene el listener para evitar duplicados
+                if (!form.hasRecaptchaValidator) {
+                    form.addEventListener('submit', this.validateRecaptcha);
+                    form.hasRecaptchaValidator = true;
+                    console.log('Validador de reCAPTCHA adjuntado a formulario');
+                }
             });
-        });
+        } else {
+            console.log('No se encontraron formularios de registro');
+        }
     }
 };
 
-// Inicializar el validador cuando el módulo se carga
+// Inicializar el validador
 recaptchaValidator.init();
 
-// Registrar en el registro de Odoo (opcional, pero puede ser útil)
-registry.category("web_tour.tours").add("recaptcha_validation", {
-    test: true,
-    steps: () => []
-});
+// Para depuración
+console.log('Módulo de validación reCAPTCHA cargado');
+
+// Registrarlo como un servicio si es necesario
+const recaptchaService = {
+    dependencies: [],
+    start() {
+        return recaptchaValidator;
+    },
+};
+
+registry.category("services").add("recaptcha_validator", recaptchaService);
