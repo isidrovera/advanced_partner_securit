@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="system_parameter_turnstile_site_key" model="ir.config_parameter">
+            <field name="key">turnstile.site_key</field>
+            <field name="value">0x4AAAAAAA-dpmO_dMh_oBeK</field>
+        </record>
+
+        <record id="system_parameter_turnstile_secret_key" model="ir.config_parameter">
+            <field name="key">turnstile.secret_key</field>
+            <field name="value">0x4AAAAAAA-dpve6o7oxKQrjCYONkL5vHtg</field>
+        </record>
+    </data>
+</odoo>

@@ -8,7 +8,7 @@
         - Campo de licencia
         - Restricciones de registro (1 por IP por día)
         - Verificación de correo electrónico
-        - Protección contra bots
+        - Protección contra bots con Cloudflare Turnstile
     """,
     'category': 'Contacts',
     'author': 'Tu Empresa',
@@ -16,6 +16,7 @@
     'depends': ['base', 'web', 'mail', 'auth_signup'],
     'data': [
         'security/ir.model.access.csv',
+        'data/system_parameters.xml',
         'views/partner_views.xml',
         'views/auth_signup_templates.xml',
         'data/mail_templates.xml',
@@ -26,7 +27,7 @@
             'advanced_partner_securit/static/src/js/recaptcha.js',
         ],
     },
-    # Permitir carga de recursos externos de Google para reCAPTCHA
+    # Permitir carga de recursos externos de Cloudflare para Turnstile
     'external_dependencies': {
         'python': [],
         'bin': []
@@ -35,12 +36,12 @@
     'CSP': {
         'default-src': ["'self'"],
         'script-src': ["'self'", "'unsafe-eval'", "'unsafe-inline'", 
-                      "www.google.com", "www.gstatic.com", "*.googleapis.com"],
+                      "challenges.cloudflare.com"],
         'style-src': ["'self'", "'unsafe-inline'"],
         'font-src': ["'self'"],
-        'img-src': ["'self'", "data:", "www.google.com", "www.gstatic.com"],
-        'connect-src': ["'self'"],
-        'frame-src': ["'self'", "www.google.com"]
+        'img-src': ["'self'", "data:", "challenges.cloudflare.com"],
+        'connect-src': ["'self'", "challenges.cloudflare.com"],
+        'frame-src': ["'self'", "challenges.cloudflare.com"]
     },
     'qweb': [],
     'installable': True,
