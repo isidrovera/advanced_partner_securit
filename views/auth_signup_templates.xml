@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
         <!-- Añadir script de reCAPTCHA con renderizado explícito -->
         <xpath expr="//div[hasclass('field-confirm_password')]" position="before">
             <script type="text/javascript">
@@ -40,10 +40,8 @@
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
-        </xpath>
-        
-        <!-- Añadir el script de reCAPTCHA al final del formulario para que se cargue después de que exista el div -->
-        <xpath expr="//button" position="after">
+            
+            <!-- Script de reCAPTCHA aquí en lugar de después del botón -->
             <script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&amp;render=explicit" async="async" defer="defer"></script>
         </xpath>
     </template>
