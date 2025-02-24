@@ -1,100 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Heredar y modificar la plantilla de registro -->
     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
             <!-- Captcha -->
-            <div class="mb-3 field-captcha">
+            <div
+                class="mb-3 field-captcha">
                 <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
-                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
-                    <t t-esc="error.get('captcha')"/>
+                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2"
+                    role="alert">
+                    <t t-esc="error.get('captcha')" />
+                </div>
+            </div> Copy <!--
+            Términos y condiciones -->
+        <div
+                class="mb-3 field-terms">
+                <div class="form-check">
+                    <input type="checkbox" name="accept_terms" id="accept_terms"
+                        class="form-check-input" required="required" />
+                    <label for="accept_terms" class="form-check-label"> Acepto los <a href="/terms"
+                            target="_blank">términos y condiciones</a>
+                    </label>
+                </div>
+                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2"
+                    role="alert">
+                    <t t-esc="error.get('terms')" />
                 </div>
             </div>
-Copy        <!-- Términos y condiciones -->
-        <div class="mb-3 field-terms">
-            <div class="form-check">
-                <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
-                <label for="accept_terms" class="form-check-label">
-                    Acepto los <a href="/terms" target="_blank">términos y condiciones</a>
-                </label>
-            </div>
-            <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
-                <t t-esc="error.get('terms')"/>
-            </div>
-        </div>
 
-        <!-- Mensaje de verificación de correo -->
-        <div class="alert alert-info mb-3">
-            <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-        </div>
-    </xpath>
-</template>
-
-    <!-- Heredar y modificar la plantilla de login para mostrar mensaje sobre verificación -->
-    <template id="login_form_message" inherit_id="web.login">
-        <xpath expr="//div[contains(@class, 'alert-danger')]" position="after">
-            <div t-if="verification_sent" class="alert alert-success">
-                <p>Se ha enviado un código de verificación a tu correo electrónico. Por favor,
-                    revisa tu bandeja de entrada.</p>
-            </div>
+            <!-- Mensaje de verificación de correo -->
+        <div
+                class="alert alert-info mb-3">
+                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu
+            correo electrónico. </div>
         </xpath>
-    </template>
-
-    <!-- Heredar y modificar la plantilla de términos y condiciones -->
-    <template id="terms_page">
-        <t t-call="web.layout">
-            <div class="container mt-4 mb-5">
-                <h1 class="mb-4">Términos y Condiciones</h1>
-                <div class="card">
-                    <div class="card-body">
-                        <h3>1. Aceptación de los Términos</h3>
-                        <p>Al registrarse y utilizar nuestro servicio, usted acepta estos términos y
-                            condiciones en su totalidad.</p>
-
-                        <h3>2. Descripción del Servicio</h3>
-                        <p>Proporcionamos una plataforma para [descripción de su servicio]. El
-                            servicio puede cambiar con el tiempo.</p>
-
-                        <h3>3. Registro y Seguridad</h3>
-                        <p>Usted es responsable de mantener la confidencialidad de su cuenta y
-                            contraseña. Notifíquenos de inmediato si cree que su cuenta ha sido
-                            comprometida.</p>
-
-                        <h3>4. Privacidad</h3>
-                        <p>Su privacidad es importante para nosotros. Consulte nuestra Política de
-                            Privacidad para entender cómo recopilamos, usamos y protegemos sus
-                            datos.</p>
-
-                        <h3>5. Conducta del Usuario</h3>
-                        <p>Está prohibido usar el servicio para actividades ilegales o no
-                            autorizadas. Nos reservamos el derecho de suspender cuentas que violen
-                            estas condiciones.</p>
-
-                        <h3>6. Propiedad Intelectual</h3>
-                        <p>Todo el contenido y software asociado con el servicio está protegido por
-                            leyes de propiedad intelectual.</p>
-
-                        <h3>7. Terminación</h3>
-                        <p>Podemos terminar o suspender su acceso al servicio inmediatamente, sin
-                            previo aviso, por cualquier razón.</p>
-
-                        <h3>8. Limitación de Responsabilidad</h3>
-                        <p>No seremos responsables por daños indirectos, incidentales, especiales,
-                            consecuentes o punitivos resultantes del uso de nuestro servicio.</p>
-
-                        <h3>9. Cambios en los Términos</h3>
-                        <p>Podemos modificar estos términos en cualquier momento. Es su
-                            responsabilidad revisarlos periódicamente.</p>
-
-                        <h3>10. Contacto</h3>
-                        <p>Si tiene preguntas sobre estos términos, contáctenos a través de [correo
-                            electrónico de contacto].</p>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-center mt-4">
-                    <a href="/web/signup" class="btn btn-primary">Volver al Registro</a>
-                </div>
-            </div>
-        </t>
     </template>
 </odoo>
