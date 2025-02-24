@@ -1,14 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-    <template id="signup_form_extended" inherit_id="auth_signup.signup">
-        <xpath expr="//form[contains(@class, 'oe_signup_form')]" position="replace">
-            <form class="oe_signup_form" role="form" method="post" t-if="not message">
-                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-Copy            <t t-call="auth_signup.fields">
-                <t t-set="only_passwords" t-value="bool(token and not invalid_token)"/>
-            </t>
-            
+    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+        <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
             <!-- Captcha -->
             <div class="mb-3 field-captcha">
                 <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
@@ -16,38 +10,23 @@ Copy            <t t-call="auth_signup.fields">
                     <t t-esc="error.get('captcha')"/>
                 </div>
             </div>
+Copy        <!-- Términos y condiciones -->
+        <div class="mb-3 field-terms">
+            <div class="form-check">
+                <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
+                <label for="accept_terms" class="form-check-label">
+                    Acepto los <a href="/terms" target="_blank">términos y condiciones</a>
+                </label>
+            </div>
+            <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
+                <t t-esc="error.get('terms')"/>
+            </div>
+        </div>
 
-            <!-- Términos y condiciones -->
-            <div class="mb-3 field-terms">
-                <div class="form-check">
-                    <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
-                    <label for="accept_terms" class="form-check-label">
-                        Acepto los <a href="/terms" target="_blank">términos y condiciones</a>
-                    </label>
-                </div>
-                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
-                    <t t-esc="error.get('terms')"/>
-                </div>
-            </div>
-
-            <!-- Mensaje de verificación de correo -->
-            <div class="alert alert-info mb-3">
-                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-            </div>
-            
-            <p class="alert alert-danger" t-if="error" role="alert">
-                <t t-esc="error"/>
-            </p>
-            
-            <input type="hidden" name="redirect" t-att-value="redirect"/>
-            <input type="hidden" name="token" t-att-value="token"/>
-            
-            <div class="text-center oe_login_buttons d-grid pt-3">
-                <button type="submit" class="btn btn-primary">Sign up</button>
-                <a t-attf-href="/web/login?{{ keep_query() }}" class="btn btn-link btn-sm" role="button">Already have an account?</a>
-                <div class="o_login_auth"/>
-            </div>
-        </form>
+        <!-- Mensaje de verificación de correo -->
+        <div class="alert alert-info mb-3">
+            <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
+        </div>
     </xpath>
 </template>
 
