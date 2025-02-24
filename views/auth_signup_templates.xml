@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-      <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+
+    <!-- Heredar y modificar la plantilla de registro -->
+    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
-            <!-- Captcha con la clave de sitio hardcoded para debugging -->
+            <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
-                <div class="g-recaptcha" data-sitekey="6LcmcOEqAAAAAL1AalVfhH9oBp" data-theme="light"></div>
+                <div class="cf-turnstile" data-sitekey="TU_CLAVE_DE_SITIO_TURNSTILE" data-theme="light"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
@@ -29,10 +31,11 @@
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
             
-            <!-- Script de reCAPTCHA simple -->
-            <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
+            <!-- Script de Turnstile -->
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
         </xpath>
     </template>
+
 
 
     <!-- Página de términos y condiciones (si se necesita) -->
