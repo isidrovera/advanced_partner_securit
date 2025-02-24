@@ -36,15 +36,7 @@
         </xpath>
     </template>
 
-    <!-- Heredar y modificar la plantilla de login para mostrar mensaje sobre verificación -->
-    <template id="login_form_message" inherit_id="web.login">
-        <xpath expr="//div[contains(@class, 'alert-danger')]" position="after">
-            <div t-if="verification_sent" class="alert alert-success">
-                <p>Se ha enviado un código de verificación a tu correo electrónico. Por favor,
-                    revisa tu bandeja de entrada.</p>
-            </div>
-        </xpath>
-    </template>
+    
 
     <!-- Heredar y modificar la plantilla de términos y condiciones -->
     <template id="terms_page">
