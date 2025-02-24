@@ -7,7 +7,7 @@
         </xpath>
 
         <!-- Agregar campo para captcha y verificación de email -->
-        <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
+        <xpath expr="//div[contains(@class, 'field-confirm_password')]" position="after">
             <!-- Captcha -->
             <div class="mb-3 field-captcha">
                 <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
@@ -90,7 +90,7 @@
 
     <!-- Heredar y modificar la plantilla de login para mostrar mensaje sobre verificación -->
     <template id="login_form_message" inherit_id="web.login">
-        <xpath expr="//div[hasclass('alert-danger')]" position="after">
+        <xpath expr="//div[contains(@class, 'alert-danger')]" position="after">
             <div t-if="verification_sent" class="alert alert-success">
                 <p>Se ha enviado un código de verificación a tu correo electrónico. Por favor,
                     revisa tu bandeja de entrada.</p>
