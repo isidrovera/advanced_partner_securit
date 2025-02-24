@@ -1,60 +1,79 @@
-# -*- coding: utf-8 -*-
-import logging
-import requests
-from odoo import http, _
-from odoo.addons.auth_signup.controllers.main import AuthSignupHome
-from odoo.http import request
+/** @odoo-module **/
 
-_logger = logging.getLogger(__name__)
+import { registry } from "@web/core/registry";
 
-class AuthSignupExtended(AuthSignupHome):
+const TurnstileValidator = {
+    init: function () {
+        console.log("[Turnstile] Iniciando validación de Turnstile...");
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("[Turnstile] DOM completamente cargado, inicializando...");
+            this.loadTurnstileScript();
+        });
+    },
 
-    def validate_turnstile(self, response):
-        """Verificar respuesta de Turnstile con Cloudflare"""
-        if not response:
-            _logger.warning("[Turnstile] No se recibió respuesta del captcha.")
-            return False
+    loadTurnstileScript: function () {
+        console.log("[Turnstile] Intentando cargar el script...");
 
-        secret_key = request.env['ir.config_parameter'].sudo().get_param('turnstile.secret_key', '')
-        if not secret_key:
-            _logger.warning("[Turnstile] Clave secreta no configurada en Odoo.")
-            return True  # Si no está configurada, no se bloquea el registro
+        if (document.querySelector('script[src="https://challenges.cloudflare.com/turnstile/v0/api.js"]')) {
+            console.log("[Turnstile] El script ya está cargado.");
+            this.renderTurnstile();
+            return;
+        }
 
-        try:
-            _logger.info("[Turnstile] Validando token en Cloudflare...")
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+        script.async = true;
+        script.defer = true;
 
-            result = requests.post(
-                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-                data={'secret': secret_key, 'response': response, 'remoteip': request.httprequest.remote_addr},
-                timeout=5
-            ).json()
+        script.onload = () => {
+            console.log("[Turnstile] Script cargado correctamente.");
+            this.renderTurnstile();
+        };
 
-            if result.get('success'):
-                _logger.info("[Turnstile] Validación exitosa para IP: %s", request.httprequest.remote_addr)
-                return True
-            else:
-                _logger.error("[Turnstile] Validación fallida. Respuesta: %s", result)
-                return False
-        except Exception as e:
-            _logger.exception("[Turnstile] Error en la validación del captcha: %s", str(e))
-            return False
+        script.onerror = () => {
+            console.error("[Turnstile] Error al cargar el script de Turnstile.");
+        };
 
-    @http.route('/web/signup', type='http', auth='public', website=True)
-    def web_auth_signup(self, *args, **kw):
-        """Validar Turnstile antes de procesar el registro"""
-        qcontext = self.get_auth_signup_qcontext()
+        document.head.appendChild(script);
+    },
 
-        # Asegurar que 'error' existe en qcontext
-        if 'error' not in qcontext:
-            qcontext['error'] = {}
+    renderTurnstile: function () {
+        console.log("[Turnstile] Buscando contenedor para renderizar el captcha...");
+        const container = document.querySelector(".cf-turnstile");
+        if (!container) {
+            console.warn("[Turnstile] No se encontró el contenedor de Turnstile en el formulario.");
+            return;
+        }
 
-        turnstile_response = kw.get('cf-turnstile-response')
+        console.log("[Turnstile] Renderizando Turnstile en el contenedor.");
+        if (typeof turnstile !== "undefined") {
+            turnstile.render(container, {
+                sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
+                theme: "light",
+                callback: (token) => {
+                    console.log("[Turnstile] Token generado exitosamente:", token);
+                    document.querySelector('#cf-turnstile-response').value = token;
+                },
+                errorCallback: () => {
+                    console.error("[Turnstile] Error al generar el token de Turnstile.");
+                }
+            });
+        } else {
+            console.warn("[Turnstile] La librería Turnstile no está disponible en el entorno actual.");
+        }
+    }
+};
 
-        if not self.validate_turnstile(turnstile_response):
-            _logger.warning("[Turnstile] Captcha no válido, bloqueando registro.")
-            qcontext['error']['captcha'] = _("Por favor, completa el captcha correctamente.")
-            return request.render('auth_signup.signup', qcontext)
+TurnstileValidator.init();
 
-        _logger.info("[Turnstile] Captcha validado correctamente. Procesando registro de usuario...")
+const turnstileService = {
+    dependencies: [],
+    start() {
+        console.log("[Turnstile] Servicio Turnstile iniciado correctamente.");
+        return TurnstileValidator;
+    },
+};
 
-        return super(AuthSignupExtended, self).web_auth_signup(*args, **kw)
+registry.category("services").add("turnstile_validator", turnstileService);
+
+export default TurnstileValidator;
