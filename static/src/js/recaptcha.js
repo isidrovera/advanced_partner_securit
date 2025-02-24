@@ -22,9 +22,10 @@ const turnstileValidator = {
     init: function () {
         TurnstileLogger.log('Inicializando Turnstile Validator');
         
-        window.addEventListener("load", () => {
+        document.addEventListener("DOMContentLoaded", () => {
             try {
                 this.loadTurnstileScript();
+                this.setupTurnstileRendering();
                 this.attachValidators();
                 TurnstileLogger.log('Inicialización completada con éxito');
             } catch (error) {
@@ -36,6 +37,12 @@ const turnstileValidator = {
     loadTurnstileScript: function () {
         TurnstileLogger.log('Intentando cargar script de Turnstile');
         
+        // Verificar si el script ya está cargado
+        if (document.querySelector('script[src="https://challenges.cloudflare.com/turnstile/v0/api.js"]')) {
+            TurnstileLogger.log('Script de Turnstile ya cargado');
+            return;
+        }
+
         const script = document.createElement('script');
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
         script.async = true;
@@ -43,6 +50,7 @@ const turnstileValidator = {
         
         script.onload = () => {
             TurnstileLogger.log('Script de Turnstile cargado exitosamente');
+            this.renderTurnstile();
         };
         
         script.onerror = (error) => {
@@ -50,6 +58,61 @@ const turnstileValidator = {
         };
         
         document.head.appendChild(script);
+    },
+
+    setupTurnstileRendering: function() {
+        // Implementar renderización manual con múltiples intentos
+        this.renderAttempts = 0;
+        this.maxRenderAttempts = 5;
+    },
+
+    renderTurnstile: function() {
+        const container = document.querySelector('#cf-turnstile-container');
+        
+        if (!container) {
+            TurnstileLogger.log('Contenedor de Turnstile no encontrado', 'warn');
+            return;
+        }
+
+        // Verificar si Turnstile ya está renderizado
+        if (container.querySelector('.cf-turnstile-widget')) {
+            TurnstileLogger.log('Turnstile ya renderizado', 'info');
+            return;
+        }
+
+        try {
+            // Verificar si la función turnstile está disponible
+            if (typeof turnstile !== 'undefined') {
+                turnstile.render('#cf-turnstile-container', {
+                    sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
+                    theme: "light",
+                    callback: (token) => {
+                        // Establecer el valor del token en un campo oculto
+                        const hiddenInput = document.querySelector('#cf-turnstile-response');
+                        if (hiddenInput) {
+                            hiddenInput.value = token;
+                        }
+                    }
+                });
+                TurnstileLogger.log('Turnstile renderizado exitosamente');
+            } else {
+                this.retryRenderTurnstile();
+            }
+        } catch (error) {
+            TurnstileLogger.log(`Error renderizando Turnstile: ${error}`, 'error');
+            this.retryRenderTurnstile();
+        }
+    },
+
+    retryRenderTurnstile: function() {
+        this.renderAttempts++;
+        
+        if (this.renderAttempts < this.maxRenderAttempts) {
+            TurnstileLogger.log(`Reintentando renderización (Intento ${this.renderAttempts})`, 'warn');
+            setTimeout(() => this.renderTurnstile(), 1000 * this.renderAttempts);
+        } else {
+            TurnstileLogger.log('Máximo de intentos de renderización alcanzado', 'error');
+        }
     },
 
     attachValidators: function () {
