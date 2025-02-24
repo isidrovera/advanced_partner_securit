@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Extender la vista de formulario de contacto -->
+    <record id="view_partner_form_inherit_license" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.license</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- Añadir el campo has_license en la pestaña de ventas -->
+            <xpath expr="//page[@name='sales_purchases']//group[@name='sales']" position="inside">
+                <field name="has_license"/>
+            </xpath>
+            
+            <!-- Añadir una nueva pestaña de seguridad para administradores -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Seguridad" groups="base.group_system">
+                    <group>
+                        <field name="registration_ip" readonly="1"/>
+                        <field name="registration_date" readonly="1"/>
+                        <field name="is_verified_email"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Extender la vista de búsqueda -->
+    <record id="view_res_partner_filter_inherit" model="ir.ui.view">
+        <field name="name">res.partner.select.inherit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='supplier']" position="after">
+                <filter string="Con Licencia" name="has_license" domain="[('has_license','=',True)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
