@@ -3,10 +3,10 @@
     <!-- Heredar y modificar la plantilla de registro -->
     <template id="extend_signup_form" inherit_id="auth_signup.fields">
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
-            
+
             <!-- Cloudflare Turnstile Captcha -->
             <div class="mb-3 field-captcha">
-                <div class="cf-turnstile" data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK" data-theme="light"></div>
+                <div id="cf-turnstile-container"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
@@ -24,18 +24,29 @@
                     <t t-esc="error.get('terms')" />
                 </div>
             </div>
-
         </xpath>
     </template>
 
+    <!-- Agregar script de Turnstile en la cabecera -->
     <template id="add_turnstile_script" name="Turnstile Script">
         <t t-call="website.layout">
             <t t-set="title">Registro</t>
             <head>
                 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
+                <script type="text/javascript">
+                    document.addEventListener("DOMContentLoaded", function() {
+                        if (typeof turnstile !== "undefined") {
+                            turnstile.render("#cf-turnstile-container", {
+                                sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
+                                theme: "light"
+                            });
+                        }
+                    });
+                </script>
             </head>
         </t>
     </template>
+
 
     <!-- Página de términos y condiciones (si se necesita) -->
     <template id="terms_page" name="Términos y Condiciones">
