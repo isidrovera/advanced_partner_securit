@@ -8,7 +8,6 @@ import string
 from datetime import datetime, timedelta
 from odoo import http, _, fields
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
-from odoo.http import db_monodb
 from odoo.addons.web.controllers.main import Home
 from odoo.http import request
 from odoo.exceptions import UserError
@@ -197,11 +196,12 @@ class AuthSignupExtended(AuthSignupHome):
                 'is_verified_email': True,
             }
             
-            db, login, password = request.env['res.users'].sudo().signup(values, qcontext.get('token'))
+            # Use Odoo 18's signup method
+            user = request.env['res.users'].sudo().with_context(no_reset_password=True).create(values)
             
-            # Autenticar al usuario directamente
+            # Authenticate the user
             request.env.cr.commit()
-            return request.env['res.users'].sudo().web_login(verification.login, verification.password)
+            return request.env['res.users'].sudo()._login_attempt(user.login, verification.password, {'interactive': True})
             
         except Exception as e:
             _logger.exception("Error durante la verificación: %s", str(e))
