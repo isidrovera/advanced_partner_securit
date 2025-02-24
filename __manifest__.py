@@ -21,6 +21,11 @@
         'data/mail_templates.xml',
         'data/ir_cron.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            'advanced_partner_securit/static/src/js/recaptcha.js',
+        ],
+    },
     'qweb': [],
     'installable': True,
     'application': False,
