@@ -6,8 +6,9 @@
         <xpath expr="//div[hasclass('field-confirm_password')]" position="before">
             <script type="text/javascript">
                 var onloadCallback = function() {
+                    // Usamos el valor que ya está disponible en el contexto
                     grecaptcha.render('recaptcha-container', {
-                        'sitekey': '<t t-esc="request.env[\'ir.config_parameter\'].sudo().get_param(\'recaptcha.site_key\')"/>',
+                        'sitekey': recaptcha_site_key,
                         'theme': 'light'
                     });
                 };
@@ -43,6 +44,11 @@
             
             <!-- Script de reCAPTCHA aquí en lugar de después del botón -->
             <script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback&amp;render=explicit" async="async" defer="defer"></script>
+            
+            <!-- Añadir variable JavaScript con la clave del sitio -->
+            <script type="text/javascript">
+                var recaptcha_site_key = '<t t-esc="recaptcha_site_key"/>';
+            </script>
         </xpath>
     </template>
 
