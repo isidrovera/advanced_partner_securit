@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Email template for verification code -->
+        <record id="mail_template_verification_code" model="mail.template">
+            <field name="name">Verification Code</field>
+            <field name="model_id" ref="model_user_verification"/>
+            <field name="subject">Código de Verificación para tu Cuenta</field>
+            <field name="email_from">{{ object.company_id and object.company_id.email or '' }}</field>
+            <field name="email_to">{{ object.login }}</field>
+            <field name="body_html" type="html">
+                <div style="padding:0; margin:0; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#333333;">
+                    <div style="background-color:#f5f5f5; padding:20px; text-align:center;">
+                        <div style="background-color:#ffffff; padding:20px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                            <h2 style="color:#875A7B; margin-top:0;">Código de Verificación</h2>
+                            <p>Hola <strong>{{ ctx.get('name') }}</strong>,</p>
+                            <p>Gracias por registrarte en nuestro sistema. Para completar tu registro, por favor usa el siguiente código de verificación:</p>
+                            <div style="font-size:24px; background-color:#f5f5f5; padding:15px; margin:20px 0; letter-spacing:5px; text-align:center; font-weight:bold;">
+                                {{ ctx.get('verification_code') }}
+                            </div>
+                            <p>Este código expirará en 10 minutos.</p>
+                            <p>Si no solicitaste este registro, por favor ignora este correo.</p>
+                            <div style="margin-top:30px; padding-top:20px; border-top:1px solid #e5e5e5; font-size:12px; color:#888888;">
+                                <p>Este es un correo automático, por favor no responda a este mensaje.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </field>
+            <field name="auto_delete" eval="True"/>
+            <field name="lang">{{ object.partner_id.lang }}</field>
+        </record>
+    </data>
+</odoo>
