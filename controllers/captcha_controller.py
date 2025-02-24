@@ -6,56 +6,63 @@ import requests
 import random
 import string
 from datetime import datetime, timedelta
+
 from odoo import http, _, fields
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
-from odoo.addons.web.controllers.main import Home
 from odoo.http import request
-from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
 class AuthSignupExtended(AuthSignupHome):
-
     def get_auth_signup_qcontext(self):
         """Extend signup context to add our custom fields and errors"""
+        # Llamar al método padre para obtener el contexto base
         qcontext = super(AuthSignupExtended, self).get_auth_signup_qcontext()
+        
+        # Agregar la clave de reCAPTCHA
         qcontext.update({
             'recaptcha_site_key': request.env['ir.config_parameter'].sudo().get_param('recaptcha.site_key', ''),
         })
         
+        # Si es un POST, realizar validaciones adicionales
         if request.httprequest.method == 'POST':
+            # Inicializar diccionario de errores si no existe
             if not qcontext.get('error'):
                 qcontext['error'] = {}
-                
-            # Check captcha
+            
+            # Validar captcha
             if not self.validate_captcha(request.params.get('g-recaptcha-response')):
                 qcontext['error']['captcha'] = _("Por favor, completa el captcha correctamente.")
-                
-            # Check terms acceptance
+            
+            # Validar aceptación de términos
             if 'accept_terms' not in request.params:
                 qcontext['error']['terms'] = _("Debes aceptar los términos y condiciones.")
-                
-            # Check IP restriction
+            
+            # Validar restricción de IP
             if not self.validate_ip_restriction():
                 qcontext['error']['ip'] = _("Has alcanzado el límite de registros desde esta IP.")
-                
-            # Check email domain
+            
+            # Validar dominio de correo
             if 'login' in request.params and not self.validate_email_domain(request.params['login']):
                 qcontext['error']['login'] = _("Este dominio de correo electrónico no está permitido.")
-                
+        
         return qcontext
 
     def validate_captcha(self, captcha_response):
-        """Validate the reCAPTCHA response"""
+        """Validar la respuesta de reCAPTCHA"""
         if not captcha_response:
             return False
-            
+        
+        # Obtener la clave secreta de reCAPTCHA
         secret_key = request.env['ir.config_parameter'].sudo().get_param('recaptcha.secret_key', '')
+        
+        # Si no hay clave secreta, saltamos la validación
         if not secret_key:
             _logger.warning("reCAPTCHA secret_key no configurada")
-            return True  # Skip validation if not configured
-            
+            return True
+        
         try:
+            # Verificar la respuesta de reCAPTCHA con Google
             response = requests.post(
                 'https://www.google.com/recaptcha/api/siteverify',
                 data={
@@ -71,25 +78,29 @@ class AuthSignupExtended(AuthSignupHome):
             return False
 
     def validate_ip_restriction(self):
-        """Check if this IP has already registered too many accounts today"""
+        """Verificar si esta IP ya ha registrado demasiadas cuentas hoy"""
         ip_address = request.httprequest.remote_addr
         
+        # Definir el rango de tiempo para hoy
         today_start = datetime.now().replace(hour=0, minute=0, second=0)
         today_end = datetime.now().replace(hour=23, minute=59, second=59)
         
+        # Contar registros desde esta IP hoy
         count = request.env['res.partner'].sudo().search_count([
             ('registration_ip', '=', ip_address),
             ('registration_date', '>=', today_start),
             ('registration_date', '<=', today_end),
         ])
         
-        return count < 3  # Limit to 3 registrations per day per IP
+        # Limitar a 3 registros por día por IP
+        return count < 3
 
     def validate_email_domain(self, email):
-        """Validate that the email domain is allowed"""
+        """Validar que el dominio de correo esté permitido"""
         if not email:
             return False
-            
+        
+        # Obtener el dominio del correo
         domain = email.split('@')[-1].lower()
         
         # Lista de dominios temporales/desechables a bloquear
@@ -105,17 +116,20 @@ class AuthSignupExtended(AuthSignupHome):
 
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
     def web_auth_signup(self, *args, **kw):
-        """Override signup to add email verification"""
+        """Sobrescribir registro para agregar verificación de correo"""
+        # Obtener el contexto de registro
         qcontext = self.get_auth_signup_qcontext()
         
+        # Si hay errores, renderizar el formulario de registro con los errores
         if 'error' in qcontext and qcontext['error']:
             return request.render('auth_signup.signup', qcontext)
-            
+        
+        # Si es un POST, realizar validaciones
         if request.httprequest.method == 'POST':
-            # Validar captcha, IP y dominio de correo antes de proceder
+            # Si no hay errores previos
             if not qcontext.get('error', {}):
                 try:
-                    # Crear usuario no verificado
+                    # Obtener datos del formulario
                     login = qcontext.get('login', '')
                     name = qcontext.get('name', '')
                     password = qcontext.get('password', '')
@@ -135,30 +149,32 @@ class AuthSignupExtended(AuthSignupHome):
                         'ip_address': request.httprequest.remote_addr,
                     }
                     
+                    # Crear registro de verificación
                     verification_id = request.env['user.verification'].sudo().create(verification_vals)
                     
-                    # Enviar correo con el código de verificación
+                    # Enviar correo con código de verificación
                     template = request.env.ref('advanced_partner_security.mail_template_verification_code')
                     template.sudo().with_context(
                         name=name,
                         verification_code=verification_code
                     ).send_mail(verification_id.id, force_send=True)
                     
-                    # Redirigir a la página de verificación
+                    # Redirigir a página de verificación
                     return werkzeug.utils.redirect(f'/verify?token={verification_token}')
-                    
+                
                 except Exception as e:
                     _logger.exception("Error durante el registro: %s", str(e))
                     qcontext['error'] = _("Ocurrió un error durante el registro. Por favor intente nuevamente.")
-                    
+        
+        # Si no es un POST o hay errores, usar el método de registro original
         return super(AuthSignupExtended, self).web_auth_signup(*args, **kw)
 
     @http.route('/verify', type='http', auth='public', website=True)
     def verification_page(self, token=None, **kw):
-        """Display verification page"""
+        """Mostrar página de verificación"""
         if not token:
             return werkzeug.utils.redirect('/web/login')
-            
+        
         error = kw.get('error')
         
         return request.render('advanced_partner_security.email_verification_page', {
@@ -168,10 +184,11 @@ class AuthSignupExtended(AuthSignupHome):
 
     @http.route('/verify/email', type='http', auth='public', website=True)
     def verify_email(self, token=None, verification_code=None, **kw):
-        """Verify email verification code"""
+        """Verificar código de verificación de correo"""
         if not token or not verification_code:
             return werkzeug.utils.redirect('/web/login')
-            
+        
+        # Buscar registro de verificación
         verification = request.env['user.verification'].sudo().search([
             ('verification_token', '=', token),
             ('verification_code', '=', verification_code),
@@ -181,12 +198,12 @@ class AuthSignupExtended(AuthSignupHome):
         
         if not verification:
             return self.verification_page(token=token, error=_("Código de verificación inválido o expirado."))
-            
+        
         try:
-            # Marcar la verificación como usada
+            # Marcar verificación como usada
             verification.write({'used': True})
             
-            # Crear usuario utilizando los datos almacenados
+            # Preparar valores para crear usuario
             values = {
                 'login': verification.login,
                 'name': verification.name,
@@ -196,23 +213,26 @@ class AuthSignupExtended(AuthSignupHome):
                 'is_verified_email': True,
             }
             
-            # Use Odoo 18's signup method
+            # Crear usuario
             user = request.env['res.users'].sudo().with_context(no_reset_password=True).create(values)
             
-            # Authenticate the user
+            # Confirmar transacción
             request.env.cr.commit()
-            return request.env['res.users'].sudo()._login_attempt(user.login, verification.password, {'interactive': True})
             
+            # Intentar iniciar sesión
+            return request.env['res.users'].sudo()._login_attempt(user.login, verification.password, {'interactive': True})
+        
         except Exception as e:
             _logger.exception("Error durante la verificación: %s", str(e))
             return self.verification_page(token=token, error=_("Ocurrió un error durante la verificación."))
 
     @http.route('/resend/verification', type='http', auth='public', website=True)
     def resend_verification(self, token=None, **kw):
-        """Resend verification code"""
+        """Reenviar código de verificación"""
         if not token:
             return werkzeug.utils.redirect('/web/login')
-            
+        
+        # Buscar registro de verificación
         verification = request.env['user.verification'].sudo().search([
             ('verification_token', '=', token),
             ('used', '=', False),
@@ -220,15 +240,15 @@ class AuthSignupExtended(AuthSignupHome):
         
         if not verification:
             return werkzeug.utils.redirect('/web/login')
-            
-        # Generar nuevo código y actualizar fecha de expiración
+        
+        # Generar nuevo código
         new_code = ''.join(random.choices(string.digits, k=6))
         verification.write({
             'verification_code': new_code,
             'expiration': fields.Datetime.now() + timedelta(minutes=10)
         })
         
-        # Enviar el nuevo código por correo
+        # Enviar nuevo código por correo
         template = request.env.ref('advanced_partner_security.mail_template_verification_code')
         template.sudo().with_context(
             name=verification.name,
