@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-    <!-- Heredar y modificar la plantilla de registro -->
     <template id="signup_form_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form" position="attributes">
             <attribute name="t-attf-action">#{request.httprequest.path}?{{ keep_query() }}</attribute>
@@ -38,45 +37,6 @@
         <xpath expr="//head" position="inside">
             <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
         </xpath>
-    </template>
-
-    <!-- Crear plantilla para la página de verificación de correo electrónico -->
-    <template id="email_verification_page">
-        <t t-call="web.login_layout">
-            <div class="container">
-                <div class="card o_database_list">
-                    <div class="card-body">
-                        <h3 class="mb-4">Verificación de Correo Electrónico</h3>
-                        <form role="form" t-attf-action="/verify/email" method="post"
-                            onsubmit="this.action = this.action + location.hash">
-                            <input type="hidden" name="csrf_token"
-                                t-att-value="request.csrf_token()" />
-                            <input type="hidden" name="token" t-att-value="token" />
-
-                            <div class="mb-3">
-                                <p>Hemos enviado un código de verificación a tu correo electrónico.</p>
-                                <p>Por favor, ingresa el código para completar tu registro.</p>
-                            </div>
-                            <div class="mb-3">
-                                <label for="verification_code">Código de verificación</label>
-                                <input type="text" name="verification_code" id="verification_code"
-                                    class="form-control"
-                                    required="required" autofocus="autofocus" autocomplete="off" />
-                            </div>
-                            <div class="mb-3" t-if="error">
-                                <p class="alert alert-danger" role="alert" t-esc="error" />
-                            </div>
-                            <div class="clearfix oe_login_buttons">
-                                <button type="submit" class="btn btn-primary btn-block">Verificar</button>
-                            </div>
-                            <div class="mt-3 text-center">
-                                <a t-attf-href="/resend/verification?token=#{token}">Reenviar código</a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </t>
     </template>
 
     <!-- Heredar y modificar la plantilla de login para mostrar mensaje sobre verificación -->
