@@ -8,7 +8,8 @@ import string
 from datetime import datetime, timedelta
 from odoo import http, _, fields
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
-from odoo.addons.web.controllers.main import ensure_db, Home
+from odoo.http import db_monodb
+from odoo.addons.web.controllers.main import Home
 from odoo.http import request
 from odoo.exceptions import UserError
 
