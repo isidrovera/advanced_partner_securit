@@ -26,6 +26,22 @@
             'advanced_partner_securit/static/src/js/recaptcha.js',
         ],
     },
+    # Permitir carga de recursos externos de Google para reCAPTCHA
+    'external_dependencies': {
+        'python': [],
+        'bin': []
+    },
+    # Dominios permitidos para cargar recursos externos
+    'CSP': {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", "'unsafe-eval'", "'unsafe-inline'", 
+                      "www.google.com", "www.gstatic.com", "*.googleapis.com"],
+        'style-src': ["'self'", "'unsafe-inline'"],
+        'font-src': ["'self'"],
+        'img-src': ["'self'", "data:", "www.google.com", "www.gstatic.com"],
+        'connect-src': ["'self'"],
+        'frame-src': ["'self'", "www.google.com"]
+    },
     'qweb': [],
     'installable': True,
     'application': False,
