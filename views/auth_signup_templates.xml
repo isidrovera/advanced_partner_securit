@@ -7,12 +7,11 @@
         </xpath>
 
         <!-- Agregar campo para captcha y verificación de email -->
-        <xpath expr="//div[contains(@class, 'field-confirm_password')]" position="after">
+        <xpath expr="//div[contains(@class, 'oe_signup_form')]" position="inside">
             <!-- Captcha -->
             <div class="mb-3 field-captcha">
                 <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
-                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2"
-                    role="alert">
+                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
             </div>
@@ -20,26 +19,18 @@
             <!-- Aceptar términos y condiciones -->
             <div class="mb-3 field-terms">
                 <div class="form-check">
-                    <input type="checkbox" name="accept_terms" id="accept_terms"
-                        class="form-check-input" required="required" />
-                    <label for="accept_terms" class="form-check-label"> Acepto los <a href="/terms"
-                            target="_blank">términos y condiciones</a>
+                    <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required" />
+                    <label for="accept_terms" class="form-check-label"> Acepto los <a href="/terms" target="_blank">términos y condiciones</a>
                     </label>
                 </div>
-                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2"
-                    role="alert">
+                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('terms')" />
                 </div>
             </div>
 
             <!-- Mensaje sobre verificación por email -->
             <div class="alert alert-info">
-                <i class="fa fa-info-circle"></i> Se enviará un código de verificación a tu correo
-                electrónico. </div>
-
-            <!-- Otros mensajes de error -->
-            <div t-if="error and error.get('ip')" class="alert alert-danger mt-2" role="alert">
-                <t t-esc="error.get('ip')" />
+                <i class="fa fa-info-circle"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
         </xpath>
 
