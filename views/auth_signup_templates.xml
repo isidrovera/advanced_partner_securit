@@ -27,10 +27,7 @@
             <!-- Mensaje de verificación de correo -->
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-            </div>
-
-            <!-- Script de Turnstile dentro del `xpath` (como lo tenías) -->
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
+            </div>          
         </xpath>
     </template>
 
