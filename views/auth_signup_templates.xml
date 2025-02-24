@@ -5,7 +5,7 @@
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
             <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
-                <div class="cf-turnstile" data-sitekey="TU_CLAVE_DE_SITIO_TURNSTILE" data-theme="light"></div>
+                <div class="cf-turnstile" data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK" data-theme="light"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
