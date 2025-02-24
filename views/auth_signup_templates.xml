@@ -31,7 +31,7 @@
         </xpath>
     </template>
 
-    <!-- Agregar el script de Turnstile en el lugar correcto para evitar CSP -->
+    <!-- Agregar el script de Turnstile de forma segura en la cabecera -->
     <template id="add_turnstile_script" name="Turnstile Script">
         <t t-call="website.layout">
             <head>

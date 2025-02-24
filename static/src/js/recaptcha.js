@@ -5,16 +5,12 @@ import { registry } from "@web/core/registry";
 const turnstileValidator = {
     init: function () {
         window.addEventListener("load", () => {
-            if (typeof turnstile !== "undefined") {
-                turnstile.render(".cf-turnstile");
-            }
+            this.attachValidators();
         });
-
-        this.attachValidators();
     },
-    
+
     attachValidators: function () {
-        const signupForms = document.querySelectorAll('form[action="/web/signup"]');
+        const signupForms = document.querySelectorAll('form.oe_signup_form');
         if (!signupForms.length) return;
 
         signupForms.forEach(form => {
@@ -27,11 +23,11 @@ const turnstileValidator = {
 
     validateTurnstile: function (ev) {
         const form = ev.target;
-        const turnstileResponse = form.querySelector('[name="cf-turnstile-response"]')?.value;
+        const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]')?.value;
 
         if (!turnstileResponse) {
             ev.preventDefault();
-            alert("Por favor, completa el captcha.");
+            alert("Por favor, completa el captcha antes de enviar el formulario.");
             return false;
         }
 
