@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+     <template id="signup_fields_extended" inherit_id="auth_signup.fields">
         <!-- Añadir script de reCAPTCHA en una ubicación válida -->
         <xpath expr="//div[hasclass('field-confirm_password')]" position="before">
             <t t-if="not debug">
@@ -10,9 +10,10 @@
         </xpath>
 
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
-            <!-- Captcha -->
+            <!-- Captcha - Usando directamente el parámetro del sistema en lugar de website.recaptcha_site_key -->
+            <t t-set="recaptcha_site_key" t-value="request.env['ir.config_parameter'].sudo().get_param('recaptcha.site_key')"/>
             <div class="mb-3 field-captcha">
-                <div class="g-recaptcha" t-att-data-sitekey="website.recaptcha_site_key" data-theme="light"></div>
+                <div class="g-recaptcha" t-att-data-sitekey="recaptcha_site_key" data-theme="light"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
                     <t t-esc="error.get('captcha')" />
                 </div>
