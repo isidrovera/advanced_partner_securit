@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Heredar y modificar la plantilla de registro -->
-    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+    <template id="extend_signup_form" inherit_id="auth_signup.fields">
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
-            <!-- Cloudflare Turnstile -->
+            
+            <!-- Cloudflare Turnstile Captcha -->
             <div class="mb-3 field-captcha">
                 <div class="cf-turnstile" data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK" data-theme="light"></div>
                 <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
@@ -11,7 +12,7 @@
                 </div>
             </div>
 
-            <!-- Términos y condiciones -->
+            <!-- Aceptación de Términos -->
             <div class="mb-3 field-terms">
                 <div class="form-check">
                     <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
@@ -24,14 +25,16 @@
                 </div>
             </div>
 
-            <!-- Mensaje de verificación de correo -->
-            <div class="alert alert-info mb-3">
-                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-            </div>
-            
-            <!-- Script de Turnstile -->
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
         </xpath>
+    </template>
+
+    <template id="add_turnstile_script" name="Turnstile Script">
+        <t t-call="website.layout">
+            <t t-set="title">Registro</t>
+            <head>
+                <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+            </head>
+        </t>
     </template>
 
     <!-- Página de términos y condiciones (si se necesita) -->

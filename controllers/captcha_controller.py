@@ -15,63 +15,50 @@ _logger = logging.getLogger(__name__)
 
 class AuthSignupExtended(AuthSignupHome):
     def get_auth_signup_qcontext(self):
-        """Extend signup context to add our custom fields and errors"""
-        # Llamar al método padre para obtener el contexto base
+        """Extender el contexto del registro y validar Turnstile"""
         qcontext = super(AuthSignupExtended, self).get_auth_signup_qcontext()
-        
-        # Agregar la clave de Turnstile
-        qcontext.update({
-            'turnstile_site_key': request.env['ir.config_parameter'].sudo().get_param('turnstile.site_key', ''),
-        })
-        
-        # Si es un POST, realizar validaciones adicionales
+
         if request.httprequest.method == 'POST':
-            # Inicializar diccionario de errores si no existe
-            if not qcontext.get('error'):
-                qcontext['error'] = {}
-            
-            # Validar captcha
-            if not self.validate_turnstile(request.params.get('cf-turnstile-response')):
+            qcontext['error'] = {}
+
+            # Validar Turnstile
+            turnstile_response = request.params.get('cf-turnstile-response')
+            if not self.validate_turnstile(turnstile_response):
                 qcontext['error']['captcha'] = _("Por favor, completa el captcha correctamente.")
-            
-            # Resto de las validaciones...
-        
+
         return qcontext
 
-    def validate_turnstile(self, turnstile_response):
-        """Validar la respuesta de Cloudflare Turnstile"""
-        if not turnstile_response:
+    def validate_turnstile(self, response):
+        """Verificar respuesta de Turnstile con Cloudflare"""
+        if not response:
             return False
         
-        # Obtener la clave secreta de Turnstile
         secret_key = request.env['ir.config_parameter'].sudo().get_param('turnstile.secret_key', '')
-        
-        # Si no hay clave secreta, saltamos la validación
         if not secret_key:
-            _logger.warning("Turnstile secret_key no configurada")
-            return True
-        
+            _logger.warning("Clave secreta de Turnstile no configurada")
+            return True  # Si no está configurada, no se bloquea
+
         try:
-            # Verificar la respuesta de Turnstile con Cloudflare
-            _logger.info("Validando Turnstile con respuesta: %s", turnstile_response[:15] + "..." if turnstile_response and len(turnstile_response) > 15 else turnstile_response)
-            
             response = requests.post(
                 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-                data={
-                    'secret': secret_key,
-                    'response': turnstile_response,
-                    'remoteip': request.httprequest.remote_addr
-                },
+                data={'secret': secret_key, 'response': response, 'remoteip': request.httprequest.remote_addr},
                 timeout=5
             )
-            
             result = response.json()
-            _logger.info("Resultado de validación Turnstile: %s", result)
-            
             return result.get('success', False)
         except Exception as e:
             _logger.exception("Error validando Turnstile: %s", str(e))
             return False
+
+    @http.route('/web/signup', type='http', auth='public', website=True)
+    def web_auth_signup(self, *args, **kw):
+        """Sobrescribir el registro de usuario para validar Turnstile"""
+        qcontext = self.get_auth_signup_qcontext()
+
+        if 'error' in qcontext and qcontext['error']:
+            return request.render('auth_signup.signup', qcontext)
+
+        return super(AuthSignupExtended, self).web_auth_signup(*args, **kw)
 
     def validate_ip_restriction(self):
         """Verificar si esta IP ya ha registrado demasiadas cuentas hoy"""
