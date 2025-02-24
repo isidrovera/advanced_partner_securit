@@ -1,33 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
       <!-- Heredar y modificar la plantilla de registro -->
-    <template id="signup_fields_extended" inherit_id="auth_signup.fields">
+    <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//div[hasclass('field-confirm_password')]" position="after">
             <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
-                <div class="cf-turnstile" data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK" data-theme="light"></div>
-                <div t-if="error and error.get('captcha')" class="alert alert-danger mt-2" role="alert">
-                    <t t-esc="error.get('captcha')" />
+                <label class="form-label">Verificación de Seguridad</label>
+                <div class="cf-turnstile" 
+                     data-sitekey="TU_SITE_KEY" 
+                     data-theme="light">
+                </div>
+                
+                <!-- Campo oculto para la respuesta del Captcha -->
+                <input type="hidden" 
+                       name="cf-turnstile-response" 
+                       id="cf-turnstile-response"/>
+                
+                <div t-if="error and error.get('captcha')" 
+                     class="alert alert-danger mt-2" 
+                     role="alert">
+                    <t t-esc="error.get('captcha')"/>
                 </div>
             </div>
 
             <!-- Términos y condiciones -->
             <div class="mb-3 field-terms">
                 <div class="form-check">
-                    <input type="checkbox" name="accept_terms" id="accept_terms" class="form-check-input" required="required"/>
+                    <input type="checkbox" 
+                           name="accept_terms" 
+                           id="accept_terms" 
+                           class="form-check-input" 
+                           required="required"/>
                     <label for="accept_terms" class="form-check-label"> 
                         Acepto los <a href="/page/terminos" target="_blank">términos y condiciones</a>
                     </label>
                 </div>
-                <div t-if="error and error.get('terms')" class="alert alert-danger mt-2" role="alert">
-                    <t t-esc="error.get('terms')" />
+                <div t-if="error and error.get('terms')" 
+                     class="alert alert-danger mt-2" 
+                     role="alert">
+                    <t t-esc="error.get('terms')"/>
                 </div>
             </div>
 
             <!-- Mensaje de verificación de correo -->
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-            </div>          
+            </div>
         </xpath>
     </template>
 
