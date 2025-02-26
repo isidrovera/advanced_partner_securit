@@ -145,6 +145,7 @@ class TurnstileAuthSignup(AuthSignupHome):
             
             
 
+
 class CSPController(http.Controller):
     """
     Controlador para modificar las políticas de seguridad de contenido (CSP) en rutas específicas
@@ -157,13 +158,12 @@ class CSPController(http.Controller):
         """
         _logger.info("Interceptando ruta de registro para ajustar CSP")
         
-        # En Odoo 18, no podemos llamar a _dispatch() sin endpoint
-        # Por lo tanto, usamos el controlador original directamente
+        # Usar el controlador original directamente
         auth_controller = AuthSignupHome()
         response = auth_controller.web_auth_signup(*args, **kw)
         
         # Modificar los encabezados CSP en la respuesta
-        if isinstance(response, Response) and hasattr(response, 'headers'):
+        if hasattr(response, 'headers'):
             csp_policy = (
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; "
                 "frame-src 'self' https://challenges.cloudflare.com; "
