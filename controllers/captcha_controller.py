@@ -14,20 +14,21 @@ class TurnstileAuthSignup(AuthSignupHome):
     def _add_csp_headers(self, response):
         """Agrega encabezados CSP a la respuesta si es necesario"""
         if hasattr(response, 'headers'):
-            # Política CSP más permisiva para permitir que Turnstile y Google Fonts funcionen
-            csp = "default-src 'self'; " + \
-                  "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://challenges.cloudflare.com https://*.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
-                  "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://challenges.cloudflare.com https://*.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
-                  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + \
-                  "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " + \
-                  "font-src 'self' data: https://fonts.gstatic.com; " + \
-                  "frame-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com; " + \
-                  "connect-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com; " + \
-                  "img-src 'self' data: https://challenges.cloudflare.com https://*.cloudflare.com;"
+            # Quitar cualquier CSP existente para evitar conflictos
+            if 'Content-Security-Policy' in response.headers:
+                del response.headers['Content-Security-Policy']
             
-            # Establecer los encabezados
+            # CSP permisivo pero específico para Cloudflare Turnstile
+            csp = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " + \
+                "script-src * 'unsafe-inline' 'unsafe-eval'; " + \
+                "connect-src * 'unsafe-inline'; " + \
+                "img-src * data: blob: 'unsafe-inline'; " + \
+                "frame-src *; " + \
+                "style-src * 'unsafe-inline'; " + \
+                "font-src * data:"
+            
             response.headers['Content-Security-Policy'] = csp
-            _logger.info("CSP agregado a la respuesta")
+            _logger.info("CSP permisivo agregado para Turnstile")
         return response
         
     def get_auth_signup_qcontext(self):

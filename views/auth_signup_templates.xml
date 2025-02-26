@@ -60,7 +60,7 @@
             </div>
             
             <!-- Cargar solo el script de Cloudflare Turnstile con render explicit -->
-            <script type="text/javascript" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
             
             <!-- Script inline para inicializar Turnstile -->
             <script type="text/javascript">
