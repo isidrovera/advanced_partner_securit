@@ -279,8 +279,8 @@ class SecurityAuthSignup(AuthSignupHome):
         _logger.debug(f"Preparando envío de correo con código {code} a {email}")
         
         try:
-            # Cambiar esta línea para usar el ID correcto del módulo
-            template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification')
+            # Usar sudo() para acceder y enviar el correo con permisos de administrador
+            template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification').sudo()
             if template:
                 template_values = {
                     'email_to': email,
