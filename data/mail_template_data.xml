@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data noupdate="1">
+    <data>
         <!-- Email template for verification code -->
         <record id="mail_template_user_signup_verification" model="mail.template">
             <field name="name">Auth Signup: Verification Code</field>
