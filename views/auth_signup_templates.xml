@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <template id="signup_fields_extended" inherit_id="auth_signup.signup">
+     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
-            <!-- Cloudflare Turnstile - Solo ID único -->
+            <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
                 <label class="form-label">Verificación de Seguridad</label>
-                <!-- Añadir atributo t-attf-id para asegurar un ID único -->
-                <div t-attf-id="cf-turnstile-container-{{ random() }}" class="cf-turnstile"
+                <!-- Usar un ID fijo en lugar de uno aleatorio -->
+                <div id="cf-turnstile-container" class="cf-turnstile"
                      data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK"
                      data-theme="light">
                 </div>
@@ -52,7 +52,6 @@
             </div>
         </xpath>
     </template>
-
     <!-- Página de términos y condiciones (si se necesita) -->
     <template id="terms_page" name="Términos y Condiciones">
         <t t-call="website.layout">
