@@ -1,58 +1,118 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
 
-// Función que se ejecutará inmediatamente para limpiar captchas duplicados
-(function cleanupDuplicateCaptchas() {
-    // Esta función se ejecutará tan pronto como el script se cargue
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", removeDuplicates);
-    } else {
-        // El DOM ya está cargado
-        removeDuplicates();
-    }
+// Prevenir múltiples inicializaciones
+if (window._turnstileInitialized) {
+    console.log("[Turnstile] Ya inicializado, evitando doble carga");
+} else {
+    // Marcar como inicializado
+    window._turnstileInitialized = true;
     
-    function removeDuplicates() {
-        console.log("[Turnstile] Buscando captchas duplicados...");
-        const containers = document.querySelectorAll(".cf-turnstile");
-        
-        if (containers.length > 1) {
-            console.log("[Turnstile] Se encontraron " + containers.length + " captchas, eliminando duplicados");
+    // IIFE para limpiar captchas duplicados inmediatamente
+    (function() {
+        // Función para eliminar captchas duplicados
+        function cleanupDuplicateCaptchas() {
+            const containers = document.querySelectorAll(".cf-turnstile");
+            if (containers.length <= 1) return;
             
-            // Mantener solo el primer contenedor y eliminar el resto
+            console.log("[Turnstile] Encontrados " + containers.length + " captchas, eliminando " + (containers.length - 1) + " duplicados");
+            
+            // Mantener solo el primer contenedor
             for (let i = 1; i < containers.length; i++) {
-                containers[i].remove();
+                try {
+                    containers[i].parentNode.removeChild(containers[i]);
+                } catch (e) {
+                    console.error("[Turnstile] Error al eliminar captcha:", e);
+                }
             }
         }
-    }
-})();
+        
+        // Limpiar en diferentes momentos para asegurar que funcione
+        // 1. Inmediatamente si el DOM ya está cargado
+        if (document.readyState !== "loading") {
+            cleanupDuplicateCaptchas();
+        }
+        
+        // 2. Cuando el DOM esté completamente cargado
+        document.addEventListener("DOMContentLoaded", cleanupDuplicateCaptchas);
+        
+        // 3. Después de que la página esté completamente cargada
+        window.addEventListener("load", cleanupDuplicateCaptchas);
+        
+        // 4. Periódicamente durante los primeros segundos después de la carga
+        let cleanupAttempts = 0;
+        const cleanupInterval = setInterval(function() {
+            cleanupDuplicateCaptchas();
+            cleanupAttempts++;
+            if (cleanupAttempts >= 10) {
+                clearInterval(cleanupInterval);
+            }
+        }, 500);
+        
+        // 5. Observar cambios en el DOM para eliminar captchas que puedan aparecer dinámicamente
+        if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(function(mutations) {
+                let shouldCleanup = false;
+                
+                for (const mutation of mutations) {
+                    if (mutation.type === 'childList') {
+                        // Comprobar si se agregaron nodos relacionados con captcha
+                        for (const node of mutation.addedNodes) {
+                            if (node.nodeType === 1) { // Elemento
+                                if (node.classList?.contains('cf-turnstile') || node.querySelector?.('.cf-turnstile')) {
+                                    shouldCleanup = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (shouldCleanup) break;
+                }
+                
+                if (shouldCleanup) {
+                    cleanupDuplicateCaptchas();
+                }
+            });
+            
+            // Configurar el observador para vigilar todo el árbol del DOM
+            observer.observe(document.documentElement || document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Guardar referencia para evitar pérdida de memoria
+            window._turnstileObserver = observer;
+        }
+    })();
+}
 
-// Variable global para controlar si el widget ya ha sido renderizado
+// Variable global para controlar el estado de renderización
 let turnstileRendered = false;
 
 const TurnstileValidator = {
-    init: function () {
-        console.log("[Turnstile] Iniciando validación de Turnstile...");
+    init: function() {
+        console.log("[Turnstile] Iniciando validación...");
         
         // Verificar si el DOM ya está cargado
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", () => {
-                console.log("[Turnstile] DOM completamente cargado, inicializando...");
                 this.setup();
             });
         } else {
             // El DOM ya está cargado
-            console.log("[Turnstile] DOM ya está cargado, inicializando inmediatamente...");
             this.setup();
         }
     },
     
     setup: function() {
-        // Eliminar cualquier duplicado de captcha que pueda existir
+        // Eliminar cualquier captcha duplicado antes de iniciar
         this.removeDuplicates();
         
-        // Si ya hay un widget visible, no inicializar de nuevo
+        // No inicializar si ya hay un iframe (captcha ya renderizado)
         if (document.querySelector('.cf-turnstile iframe')) {
-            console.log("[Turnstile] Widget ya visible en el DOM, no se inicializa de nuevo");
+            console.log("[Turnstile] Ya hay un iframe, saltando inicialización");
+            turnstileRendered = true;
             return;
         }
         
@@ -61,61 +121,79 @@ const TurnstileValidator = {
     },
     
     removeDuplicates: function() {
-        console.log("[Turnstile] Buscando captchas duplicados...");
         const containers = document.querySelectorAll(".cf-turnstile");
+        if (containers.length <= 1) return;
         
-        if (containers.length > 1) {
-            console.log("[Turnstile] Se encontraron " + containers.length + " captchas, eliminando duplicados");
-            
-            // Mantener solo el primer contenedor y eliminar el resto
-            for (let i = 1; i < containers.length; i++) {
-                containers[i].remove();
-            }
-            
-            // Asegurarse de que el primer contenedor tenga el ID correcto
-            if (containers[0] && !containers[0].id) {
-                containers[0].id = "cf-turnstile-container";
+        console.log("[Turnstile] Eliminando captchas duplicados...");
+        
+        // Mantener solo el primer contenedor
+        for (let i = 1; i < containers.length; i++) {
+            try {
+                containers[i].parentNode.removeChild(containers[i]);
+            } catch (e) {
+                console.error("[Turnstile] Error al eliminar captcha:", e);
             }
         }
     },
     
-    loadTurnstileScript: function () {
-        console.log("[Turnstile] Intentando cargar el script...");
+    loadTurnstileScript: function() {
+        // Evitar cargar el script si ya existe o si ya está renderizado
         if (document.querySelector('script[src*="turnstile/v0/api.js"]')) {
-            console.log("[Turnstile] El script ya está cargado.");
-            this.renderTurnstile();
+            console.log("[Turnstile] Script ya cargado");
+            this.waitForTurnstileAPI();
             return;
         }
         
+        console.log("[Turnstile] Cargando script Turnstile...");
         const script = document.createElement("script");
         script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
         script.async = true;
         script.defer = true;
         script.onload = () => {
-            console.log("[Turnstile] Script cargado correctamente.");
-            this.renderTurnstile();
-        };
-        script.onerror = () => {
-            console.error("[Turnstile] Error al cargar el script de Turnstile.");
+            console.log("[Turnstile] Script cargado correctamente");
+            this.waitForTurnstileAPI();
         };
         document.head.appendChild(script);
     },
     
-    renderTurnstile: function () {
-        // Verificar nuevamente para eliminar duplicados antes de renderizar
-        this.removeDuplicates();
+    waitForTurnstileAPI: function() {
+        let attempts = 0;
+        const maxAttempts = 20; // 5 segundos máximo
         
-        // Evitar renderizar múltiples veces
+        const checkAPI = () => {
+            if (typeof window.turnstile !== "undefined") {
+                this.renderTurnstile();
+            } else if (++attempts < maxAttempts) {
+                setTimeout(checkAPI, 250);
+            } else {
+                console.error("[Turnstile] La API no estuvo disponible después de varios intentos");
+            }
+        };
+        
+        checkAPI();
+    },
+    
+    renderTurnstile: function() {
+        // No renderizar si ya está renderizado
         if (turnstileRendered) {
-            console.log("[Turnstile] Widget ya renderizado, saltando renderización");
+            console.log("[Turnstile] Ya está renderizado, saltando");
             return;
         }
         
-        console.log("[Turnstile] Buscando contenedor para renderizar el captcha...");
-        const container = document.querySelector(".cf-turnstile");
+        // No renderizar si ya hay un iframe (captcha ya renderizado)
+        if (document.querySelector('.cf-turnstile iframe')) {
+            console.log("[Turnstile] Se detectó un iframe existente, no se renderizará");
+            turnstileRendered = true;
+            return;
+        }
         
+        // Eliminar duplicados antes de renderizar
+        this.removeDuplicates();
+        
+        // Obtener el contenedor
+        const container = document.querySelector(".cf-turnstile");
         if (!container) {
-            console.warn("[Turnstile] No se encontró el contenedor de Turnstile en el formulario.");
+            console.warn("[Turnstile] No se encontró contenedor para el captcha");
             return;
         }
         
@@ -124,130 +202,103 @@ const TurnstileValidator = {
             container.id = "cf-turnstile-container";
         }
         
-        // Limpiar cualquier contenido existente para evitar duplicación
-        const existingIframes = container.querySelectorAll('iframe');
-        if (existingIframes.length > 0) {
-            console.log("[Turnstile] Eliminando iframes existentes:", existingIframes.length);
-            existingIframes.forEach(iframe => iframe.remove());
+        // Limpiar el contenedor antes de renderizar
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
         }
         
-        console.log("[Turnstile] Comprobando disponibilidad de la API Turnstile...");
+        console.log("[Turnstile] Renderizando captcha en contenedor:", container.id);
         
-        // Esperar a que turnstile esté disponible
-        const checkTurnstile = () => {
-            if (typeof window.turnstile !== "undefined") {
-                console.log("[Turnstile] API disponible, renderizando widget...");
-                
-                // Marcar como renderizado
-                turnstileRendered = true;
-                
-                try {
-                    window.turnstile.render(container, {
-                        sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
-                        theme: "light",
-                        callback: (token) => {
-                            console.log("[Turnstile] Token generado exitosamente");
-                            // Buscar el campo de entrada oculto para el token
-                            let responseField = document.getElementById('cf-turnstile-response');
-                            if (!responseField) {
-                                // Si no existe, crearlo
-                                responseField = document.createElement('input');
-                                responseField.type = 'hidden';
-                                responseField.id = 'cf-turnstile-response';
-                                responseField.name = 'cf-turnstile-response';
-                                container.appendChild(responseField);
-                            }
-                            responseField.value = token;
-                        },
-                        "error-callback": () => {
-                            console.error("[Turnstile] Error al generar el token de Turnstile.");
-                        }
-                    });
-                } catch (e) {
-                    console.error("[Turnstile] Error al renderizar el widget:", e);
+        try {
+            // Marcar como renderizado antes de renderizar, para evitar múltiples intentos
+            turnstileRendered = true;
+            
+            // Renderizar el captcha
+            window.turnstile.render(container, {
+                sitekey: "0x4AAAAAAA-dpmO_dMh_oBeK",
+                theme: "light",
+                callback: (token) => {
+                    console.log("[Turnstile] Token generado correctamente");
+                    const responseField = document.getElementById("cf-turnstile-response");
+                    if (responseField) {
+                        responseField.value = token;
+                    } else {
+                        // Si no existe el campo, crearlo
+                        const hiddenField = document.createElement("input");
+                        hiddenField.type = "hidden";
+                        hiddenField.id = "cf-turnstile-response";
+                        hiddenField.name = "cf-turnstile-response";
+                        hiddenField.value = token;
+                        container.appendChild(hiddenField);
+                    }
+                },
+                "error-callback": () => {
+                    console.error("[Turnstile] Error generando token");
                 }
-            } else {
-                console.log("[Turnstile] API aún no disponible, reintentando en 100ms...");
-                setTimeout(checkTurnstile, 100);
-            }
-        };
-        
-        checkTurnstile();
+            });
+        } catch (error) {
+            console.error("[Turnstile] Error al renderizar:", error);
+            turnstileRendered = false; // Permitir otro intento
+        }
     },
     
-    attachValidator: function () {
-        console.log("[Turnstile] Buscando formulario para validación...");
+    attachValidator: function() {
         const form = document.querySelector("form.oe_signup_form");
-        
         if (!form) {
-            console.warn("[Turnstile] No se encontró el formulario 'oe_signup_form'");
+            console.warn("[Turnstile] Formulario no encontrado");
             return;
         }
         
-        // Evitar agregar múltiples listeners
+        // Evitar adjuntar múltiples validadores
         if (form.dataset.turnstileValidatorAttached === "true") {
-            console.log("[Turnstile] El validador ya está adjunto al formulario");
             return;
         }
         
-        console.log("[Turnstile] Formulario encontrado, añadiendo validador...");
         form.addEventListener("submit", this.validateTurnstile.bind(this));
-        
-        // Marcar el formulario como ya procesado
         form.dataset.turnstileValidatorAttached = "true";
     },
     
-    validateTurnstile: function (ev) {
-        console.log("[Turnstile] Validando formulario antes de enviar...");
+    validateTurnstile: function(ev) {
         const turnstileResponse = document.querySelector('input[name="cf-turnstile-response"]')?.value;
         
         if (!turnstileResponse) {
-            console.warn("[Turnstile] No se encontró el token de respuesta en el formulario");
             ev.preventDefault();
             
             // Mostrar mensaje de error
-            const errorContainer = document.createElement('div');
-            errorContainer.className = 'alert alert-danger mt-2';
-            errorContainer.textContent = 'Por favor, completa el captcha antes de enviar el formulario.';
-            errorContainer.setAttribute('role', 'alert');
+            const errorContainer = document.createElement("div");
+            errorContainer.className = "alert alert-danger mt-2";
+            errorContainer.textContent = "Por favor, completa la verificación de seguridad antes de continuar.";
             
-            const captchaField = document.querySelector('.field-captcha');
+            const captchaField = document.querySelector(".field-captcha");
             if (captchaField) {
-                // Eliminar cualquier mensaje de error anterior
-                const previousError = captchaField.querySelector('.alert');
+                // Eliminar cualquier error anterior
+                const previousError = captchaField.querySelector(".alert");
                 if (previousError) {
                     previousError.remove();
                 }
                 
                 captchaField.appendChild(errorContainer);
             } else {
-                alert("Por favor, completa el captcha antes de enviar el formulario.");
+                alert("Por favor, completa la verificación de seguridad antes de continuar.");
             }
             
             return false;
         }
         
-        console.log("[Turnstile] Formulario validado correctamente");
         return true;
     }
 };
 
-// Iniciar la limpieza de duplicados y el validador inmediatamente
-document.addEventListener("DOMContentLoaded", function() {
-    // Ejecutar fuera del proceso normal para asegurar que se ejecute lo antes posible
-    setTimeout(function() {
-        TurnstileValidator.removeDuplicates();
-    }, 0);
-});
-
-// Iniciar el validador
-TurnstileValidator.init();
+// Inicializar con retraso para permitir que la limpieza se ejecute primero
+setTimeout(() => {
+    TurnstileValidator.init();
+}, 100);
 
 // Registrar el servicio para Odoo
 const turnstileService = {
     dependencies: [],
     start() {
-        console.log("[Turnstile] Servicio Turnstile iniciado correctamente.");
+        console.log("[Turnstile] Servicio iniciado");
         return TurnstileValidator;
     },
 };
