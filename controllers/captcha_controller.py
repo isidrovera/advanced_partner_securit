@@ -221,26 +221,27 @@ class SecurityAuthSignup(AuthSignupHome):
         return request.render('auth_signup.signup', qcontext)
     
     def _validate_ip_limit(self):
-        """Valida que una IP no haya creado más de un usuario por día"""
+        """Valida que una IP no haya creado más de tres usuarios por día"""
         ip = request.httprequest.remote_addr
         today = fields.Date.today()
         yesterday = today - timedelta(days=1)
-        
+
         _logger.debug(f"Validando límite de IP para: {ip}, periodo: {yesterday} - {today}")
-        
+
         # Buscar registros de IP en las últimas 24 horas
         IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
         registrations = IpRegistration.search([
             ('ip_address', '=', ip),
             ('create_date', '>=', yesterday)
         ])
-        
+
         _logger.info(f"Validando límite IP para {ip}, registros existentes: {len(registrations)}")
-        
-        if registrations:
+
+        if len(registrations) >= 3:  # Cambio: permitir hasta 3 registros
             reg_emails = ', '.join([r.email for r in registrations])
             _logger.warning(f"Intento de registro múltiple bloqueado para IP: {ip}, registros previos: {len(registrations)}, correos: {reg_emails}")
-            raise UserError(_("Por razones de seguridad, solo se permite un registro por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
+            raise UserError(_("Por razones de seguridad, solo se permiten tres registros por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
+
     
     def _validate_email_domain(self, email):
         """Valida que el dominio de correo sea confiable"""
