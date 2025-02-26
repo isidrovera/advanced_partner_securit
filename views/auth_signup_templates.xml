@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-     <!-- Heredamos la plantilla providers de auth_oauth para corregir el error -->
+    <!-- Heredamos la plantilla providers de auth_oauth para corregir el error -->
     <template id="providers_fix" inherit_id="auth_oauth.providers">
         <xpath expr="//em[contains(@t-attf-class, 'my-#{len(providers)')]" position="attributes">
             <attribute name="t-attf-class">d-block text-center text-muted small my-#{len(providers) if providers else 3}</attribute>
         </xpath>
     </template>
     
-     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
+    <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
             <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
@@ -59,31 +59,82 @@
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
             
-            <!-- Cargar el script de Turnstile y nuestro handler -->
+            <!-- Cargar solo el script de Cloudflare Turnstile directamente -->
+            <script type="text/javascript" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
             
-            <script type="text/javascript" src="/auth_signup_turnstile/static/src/js/recaptcha.js"></script>
+            <!-- Script inline para inicializar Turnstile -->
             <script type="text/javascript">
-    document.addEventListener('DOMContentLoaded', function() {
-        if (window.turnstile) {
-            turnstile.ready(function() {
-                const container = document.querySelector('.cf-turnstile');
-                if (container) {
-                    const sitekey = container.getAttribute('data-sitekey');
-                    if (sitekey) {
-                        turnstile.render(container, {
-                            sitekey: sitekey,
-                            callback: function(token) {
-                                document.getElementById('cf-turnstile-response').value = token;
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Inicializar Turnstile después de que el DOM esté listo
+                    if (typeof turnstile !== 'undefined') {
+                        turnstile.ready(function() {
+                            renderTurnstile();
+                        });
+                    } else {
+                        // Si turnstile no está disponible, intentar después de 1 segundo
+                        setTimeout(function() {
+                            if (typeof turnstile !== 'undefined') {
+                                turnstile.ready(function() {
+                                    renderTurnstile();
+                                });
+                            }
+                        }, 1000);
+                    }
+                    
+                    function renderTurnstile() {
+                        const container = document.getElementById('cf-turnstile-container');
+                        if (!container) return;
+                        
+                        const sitekey = container.getAttribute('data-sitekey');
+                        if (!sitekey) return;
+                        
+                        // Limpiar contenedor si ya tiene contenido
+                        while (container.firstChild) {
+                            container.removeChild(container.firstChild);
+                        }
+                        
+                        // Renderizar Turnstile
+                        try {
+                            turnstile.render('#cf-turnstile-container', {
+                                sitekey: sitekey,
+                                callback: function(token) {
+                                    document.getElementById('cf-turnstile-response').value = token;
+                                },
+                                'error-callback': function() {
+                                    console.log('Ha ocurrido un error con la verificación de seguridad');
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Error al renderizar Turnstile:', error);
+                        }
+                    }
+                    
+                    // Validar el formulario antes de enviar
+                    const form = document.querySelector('form.oe_signup_form');
+                    if (form &amp;&amp; !form.dataset.turnstileValidatorAttached) {
+                        form.addEventListener('submit', function(e) {
+                            const response = document.getElementById('cf-turnstile-response').value;
+                            if (!response) {
+                                e.preventDefault();
+                                const captchaField = document.querySelector('.field-captcha');
+                                if (captchaField) {
+                                    let errorContainer = captchaField.querySelector('.alert');
+                                    if (!errorContainer) {
+                                        errorContainer = document.createElement('div');
+                                        errorContainer.className = 'alert alert-danger mt-2';
+                                        captchaField.appendChild(errorContainer);
+                                    }
+                                    errorContainer.textContent = 'Por favor, completa la verificación de seguridad.';
+                                }
                             }
                         });
+                        form.dataset.turnstileValidatorAttached = 'true';
                     }
-                }
-            });
-        }
-    });
-</script>
+                });
+            </script>
         </xpath>
     </template>
+    
     <!-- Página de términos y condiciones (si se necesita) -->
     <template id="terms_page" name="Términos y Condiciones">
         <t t-call="website.layout">

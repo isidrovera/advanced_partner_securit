@@ -14,10 +14,17 @@ class TurnstileAuthSignup(AuthSignupHome):
     def _add_csp_headers(self, response):
         """Agrega encabezados CSP a la respuesta si es necesario"""
         if hasattr(response, 'headers'):
-            csp = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; " + \
-                "script-src-elem 'self' 'unsafe-inline' https://challenges.cloudflare.com; " + \
-                "frame-src 'self' https://challenges.cloudflare.com; " + \
-                "connect-src 'self' https://challenges.cloudflare.com;"
+            # Política CSP más permisiva para permitir que Turnstile funcione correctamente
+            csp = "default-src 'self'; " + \
+                  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
+                  "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
+                  "style-src 'self' 'unsafe-inline'; " + \
+                  "frame-src 'self' https://challenges.cloudflare.com; " + \
+                  "connect-src 'self' https://challenges.cloudflare.com; " + \
+                  "img-src 'self' data: https://challenges.cloudflare.com; " + \
+                  "font-src 'self' data:;"
+            
+            # Establecer los encabezados
             response.headers['Content-Security-Policy'] = csp
             _logger.info("CSP agregado a la respuesta")
         return response
@@ -103,14 +110,16 @@ class TurnstileAuthSignup(AuthSignupHome):
         """
         Mantiene el login original sin cambios (no requiere captcha)
         """
-        return super().web_login(*args, **kw)
+        response = super().web_login(*args, **kw)
+        return self._add_csp_headers(response)
     
     @http.route()
     def web_reset_password(self, *args, **kw):
         """
         Mantiene el reset de contraseña original sin cambios
         """
-        return super().web_reset_password(*args, **kw)
+        response = super().web_reset_password(*args, **kw)
+        return self._add_csp_headers(response)
 
     # Método para validar Turnstile mediante una ruta API
     @http.route('/auth_signup/verify_turnstile', type='json', auth='public', website=True, csrf=False)
