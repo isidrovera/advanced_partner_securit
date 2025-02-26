@@ -19,7 +19,7 @@
         'data/system_parameters.xml',
         'views/partner_views.xml',        
         'views/signup_verification.xml',
-        'data/mail_templates.xml',
+        'data/mail_template_data.xml',
         'data/ir_cron.xml',
     ],
     'assets': {

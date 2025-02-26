@@ -279,7 +279,8 @@ class SecurityAuthSignup(AuthSignupHome):
         _logger.debug(f"Preparando envío de correo con código {code} a {email}")
         
         try:
-            template = request.env.ref('auth_signup_security.mail_template_user_signup_verification')
+            # Cambiar esta línea para usar el ID correcto del módulo
+            template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification')
             if template:
                 template_values = {
                     'email_to': email,
@@ -298,7 +299,6 @@ class SecurityAuthSignup(AuthSignupHome):
         except Exception as e:
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
-    
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
         ip = request.httprequest.remote_addr
