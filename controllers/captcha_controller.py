@@ -180,43 +180,40 @@ class SecurityAuthSignup(AuthSignupHome):
                 
             # 3. Tercer paso: registro final
             elif registration_state == 'submit':
-                verification_email = request.session.get('verification_email')
+                verification_email = request.session.get('verification_email', '').strip()
                 _logger.info(f"Procesando registro final para: {verification_email}")
-                
-                # Validar términos
-                if not kw.get('accept_terms'):
-                    _logger.warning(f"Términos y condiciones no aceptados para: {verification_email}")
-                    qcontext['error'] = _("Debes aceptar los términos y condiciones para registrarte.")
+
+                if not verification_email:
+                    _logger.error("No se pudo obtener el email del usuario para el registro.")
+                    qcontext['error'] = _("No se pudo obtener el correo electrónico para el registro. Intente de nuevo.")
                     return request.render('advanced_partner_securit.signup_final', qcontext)
-                
-                # Validar que la contraseña y la confirmación coincidan
-                if kw.get('password') != kw.get('confirm_password'):
-                    _logger.warning(f"Las contraseñas no coinciden para: {verification_email}")
-                    qcontext['error'] = _("Las contraseñas no coinciden. Por favor, inténtelo de nuevo.")
-                    return request.render('advanced_partner_securit.signup_final', qcontext)
-                
-                # Añadir email verificado a los parámetros
+
+                # Asegurar que `login` no esté vacío
                 kw['login'] = verification_email
+                kw['email'] = verification_email  # Odoo usa `email` en algunos casos
                 
                 try:
+                    _logger.debug(f"Registrando usuario con email: {kw['login']}")
+
                     # Registrar IP
-                    _logger.debug(f"Registrando uso de IP para: {request.httprequest.remote_addr}, correo: {verification_email}")
                     self._register_ip_usage()
-                    
-                    # Limpiar datos de sesión
+
+                    # Limpiar datos de sesión después del registro exitoso
                     request.session.pop('verification_code', None)
-                    request.session.pop('verification_email', None) 
+                    request.session.pop('verification_email', None)
                     request.session.pop('verification_expiry', None)
                     request.session.pop('registration_state', None)
-                    
+
                     _logger.info(f"Procediendo con registro final para: {verification_email}")
-                    
+
                     # Proceder con el registro estándar
                     return super(SecurityAuthSignup, self).web_auth_signup(*args, **kw)
+
                 except Exception as e:
                     _logger.error(f"Error en registro final para {verification_email}: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error en el proceso de registro. Por favor, inténtelo de nuevo más tarde.")
                     return request.render('advanced_partner_securit.signup_final', qcontext)
+
         
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
         _logger.info(f"Mostrando formulario inicial de registro para IP: {request.httprequest.remote_addr}")
