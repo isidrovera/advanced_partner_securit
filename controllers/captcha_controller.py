@@ -17,7 +17,41 @@ class SecurityAuthSignup(AuthSignupHome):
     2. Validación de dominios de correo confiables
     3. Verificación por código enviado al correo
     """
-    
+    def get_client_ip(self):
+        """
+        Obtiene la dirección IP real del cliente, incluso detrás de proxies o en entornos Docker
+        
+        Returns:
+            str: La dirección IP del cliente
+        """
+        request_obj = request.httprequest
+        
+        # Lista de cabeceras a verificar en orden de prioridad
+        ip_headers = [
+            'X-Forwarded-For',
+            'X-Real-IP',
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_REAL_IP',
+            'HTTP_CLIENT_IP',
+            'REMOTE_ADDR'
+        ]
+        
+        client_ip = None
+        
+        # Verificar cabeceras en orden
+        for header in ip_headers:
+            if header in request_obj.headers:
+                ips = request_obj.headers.get(header, '').split(',')
+                if ips:
+                    client_ip = ips[0].strip()
+                    break
+                    
+        # Si no se encontró en cabeceras, usar remote_addr
+        if not client_ip:
+            client_ip = request_obj.remote_addr
+        
+        _logger.debug(f"IP detectada: {client_ip}, cabeceras: {request_obj.headers}")
+        return client_ip
     def get_auth_signup_qcontext(self):
         """Sobrescribe para asegurar que providers esté definido y agregar datos de seguridad"""
         qcontext = super(SecurityAuthSignup, self).get_auth_signup_qcontext()
@@ -63,7 +97,8 @@ class SecurityAuthSignup(AuthSignupHome):
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
     def web_auth_signup(self, *args, **kw):
         """Sobrescribe el método de registro para añadir controles de seguridad"""
-        _logger.info(f"Acceso a formulario de registro desde IP: {request.httprequest.remote_addr}, método: {request.httprequest.method}")
+        _logger.info(f"Acceso a formulario de registro desde IP: {self.get_client_ip()}, método: {request.httprequest.method}")
+
         
         qcontext = self.get_auth_signup_qcontext()
         
@@ -81,13 +116,13 @@ class SecurityAuthSignup(AuthSignupHome):
             # 1. Primer paso: validación inicial y envío de código
             if registration_state == 'pre' and kw.get('email'):
                 email = kw.get('email', '').strip().lower()
-                _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {request.httprequest.remote_addr}")
+                _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {self.get_client_ip()}")
                 
                 try:
                     # Validar límite de IP
-                    _logger.debug(f"Validando límite de IP para: {request.httprequest.remote_addr}")
+                    _logger.debug(f"Validando límite de IP para: {self.get_client_ip()}")
                     self._validate_ip_limit()
-                    _logger.info(f"Validación de IP exitosa para: {request.httprequest.remote_addr}")
+                    _logger.info(f"Validación de IP exitosa para: {self.get_client_ip()}")
                     
                     # Validar dominio de correo
                     _logger.debug(f"Validando dominio de correo para: {email}")
@@ -242,13 +277,13 @@ class SecurityAuthSignup(AuthSignupHome):
                     return request.render('advanced_partner_securit.signup_final', qcontext)
 
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
-        _logger.info(f"Mostrando formulario inicial de registro para IP: {request.httprequest.remote_addr}")
+        _logger.info(f"Mostrando formulario inicial de registro para IP: {self.get_client_ip()}")
         request.session['registration_state'] = 'pre'
         return request.render('auth_signup.signup', qcontext)
     
     def _validate_ip_limit(self):
         """Valida que una IP no haya creado más de tres usuarios por día"""
-        ip = request.httprequest.remote_addr
+        ip = self.get_client_ip()
         today = fields.Date.today()
         yesterday = today - timedelta(days=1)
 
@@ -331,7 +366,7 @@ class SecurityAuthSignup(AuthSignupHome):
 
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
-        ip = request.httprequest.remote_addr
+        ip = self.get_client_ip()
         email = request.session.get('verification_email', 'unknown')
 
         _logger.debug(f"Registrando uso de IP: {ip} para correo: {email}")
