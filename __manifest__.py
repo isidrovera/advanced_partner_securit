@@ -24,7 +24,7 @@
     ],
     'assets': {
         'web.assets_frontend': [
-            'advanced_partner_securit/static/src/js/recaptcha.js',
+            
         ],
     },
     # Permitir carga de recursos externos de Cloudflare para Turnstile
