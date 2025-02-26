@@ -22,7 +22,7 @@
                 Hemos recibido una solicitud de registro en nuestra plataforma. Para completar su registro, utilice el siguiente código de verificación:
             </p>
             <div style="text-align: center; margin: 30px 0px; font-size: 26px; font-weight: bold; padding: 15px; background-color: #f2f2f2; border-radius: 5px;">
-                {{ ctx['verification_code'] }}
+                {{ ctx['expiry_hours'] }}
             </div>
             <p style="padding: 0px; font-size: 15px;">
                 Este código es válido por {{ ctx['expiry_hours'] }} horas desde el momento en que se envió este correo.

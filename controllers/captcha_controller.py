@@ -282,19 +282,22 @@ class SecurityAuthSignup(AuthSignupHome):
             # Usar sudo() para acceder y enviar el correo con permisos de administrador
             template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification').sudo()
             if template:
-                template_values = {
+                mail_values = {
                     'email_to': email,
-                    'verification_code': code,
-                    'expiry_hours': 0.5,  # 30 minutos
+                    'body_html': template.body_html.replace("{{ ctx['verification_code'] }}", code)
+                                                .replace("{{ ctx['expiry_hours'] }}", str(0.5)),
+                    'subject': template.subject,
                 }
                 
-                _logger.debug(f"Enviando correo usando plantilla ID: {template.id}")
-                mail_id = template.with_context(**template_values).send_mail(
-                    request.env.user.id, force_send=True
+                _logger.debug(f"Enviando correo con código {code} a {email}")
+
+                mail_id = template.send_mail(
+                    request.env.user.id, email_values=mail_values, force_send=True
                 )
                 
                 _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
-            else:
+
+                        else:
                 _logger.error(f"No se encontró la plantilla de correo para verificación de registro")
         except Exception as e:
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
