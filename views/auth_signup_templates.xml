@@ -2,7 +2,7 @@
 <odoo>
      <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
-            <!-- Cloudflare Turnstile - Modificado para mejor compatibilidad -->
+            <!-- Cloudflare Turnstile -->
             <div class="mb-3 field-captcha">
                 <label class="form-label">Verificación de Seguridad</label>
                 <!-- Contenedor para Turnstile con ID único -->
@@ -51,34 +51,10 @@
             <div class="alert alert-info mb-3">
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
-        </xpath>
-    </template>
-    
-    <!-- Página de términos y condiciones (sin cambios) -->
-    <template id="terms_page" name="Términos y Condiciones">
-        <!-- Contenido sin cambios -->
-    </template>
-    
-    <!-- Agrega el script de Turnstile al head de la página para mejor compatibilidad -->
-    <template id="turnstile_assets" inherit_id="web.assets_frontend">
-        <xpath expr="//script[last()]" position="after">
-            <script>
-                // Función global para ser llamada cuando Turnstile está listo
-                window.onTurnstileReady = function() {
-                    console.log("[Turnstile-Template] Turnstile API lista para usar");
-                }
-            </script>
-        </xpath>
-    </template>
-    
-    <!-- Configura CSP para permitir Turnstile -->
-    <template id="layout_turnstile" inherit_id="web.layout">
-        <xpath expr="//meta[@name='viewport']" position="after">
-            <meta http-equiv="Content-Security-Policy" content="
-                script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com;
-                frame-src 'self' https://challenges.cloudflare.com;
-                connect-src 'self' https://challenges.cloudflare.com;" 
-                  t-if="request and request.httprequest.path == '/web/signup'"/>
+            
+            <!-- Cargar el script de Turnstile y nuestro handler -->
+            <script type="text/javascript" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+            <script type="text/javascript" src="/auth_signup_turnstile/static/src/js/recaptcha.js"></script>
         </xpath>
     </template>
     <!-- Página de términos y condiciones (si se necesita) -->
