@@ -15,12 +15,13 @@ class TurnstileAuthSignup(AuthSignupHome):
         """Agrega encabezados CSP a la respuesta si es necesario"""
         if hasattr(response, 'headers'):
             csp = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; " + \
-                  "frame-src 'self' https://challenges.cloudflare.com; " + \
-                  "connect-src 'self' https://challenges.cloudflare.com;"
+                "script-src-elem 'self' 'unsafe-inline' https://challenges.cloudflare.com; " + \
+                "frame-src 'self' https://challenges.cloudflare.com; " + \
+                "connect-src 'self' https://challenges.cloudflare.com;"
             response.headers['Content-Security-Policy'] = csp
             _logger.info("CSP agregado a la respuesta")
         return response
-    
+        
     def get_auth_signup_qcontext(self):
         """Sobrescribe para asegurar que providers siempre esté definido"""
         qcontext = super(TurnstileAuthSignup, self).get_auth_signup_qcontext()

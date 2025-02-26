@@ -60,8 +60,28 @@
             </div>
             
             <!-- Cargar el script de Turnstile y nuestro handler -->
-            <script type="text/javascript" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
+            
             <script type="text/javascript" src="/auth_signup_turnstile/static/src/js/recaptcha.js"></script>
+            <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.turnstile) {
+            turnstile.ready(function() {
+                const container = document.querySelector('.cf-turnstile');
+                if (container) {
+                    const sitekey = container.getAttribute('data-sitekey');
+                    if (sitekey) {
+                        turnstile.render(container, {
+                            sitekey: sitekey,
+                            callback: function(token) {
+                                document.getElementById('cf-turnstile-response').value = token;
+                            }
+                        });
+                    }
+                }
+            });
+        }
+    });
+</script>
         </xpath>
     </template>
     <!-- Página de términos y condiciones (si se necesita) -->
