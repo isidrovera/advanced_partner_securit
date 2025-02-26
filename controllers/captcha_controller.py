@@ -307,16 +307,16 @@ class SecurityAuthSignup(AuthSignupHome):
         """Registra el uso de una IP para crear cuenta"""
         ip = request.httprequest.remote_addr
         email = request.session.get('verification_email', 'unknown')
-        
+
         _logger.debug(f"Registrando uso de IP: {ip} para correo: {email}")
-        
+
         try:
             IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
             new_record = IpRegistration.create({
                 'ip_address': ip,
                 'email': email
             })
-            
+
             _logger.info(f"Registro exitoso: nuevo usuario {email} desde IP {ip}, registro ID: {new_record.id}")
             return new_record
         except Exception as e:
