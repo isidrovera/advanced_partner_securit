@@ -1,20 +1,20 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
 
+// Function to remove duplicate captchas - declared in global scope
+function removeDuplicateCaptchas() {
+    const containers = document.querySelectorAll(".cf-turnstile");
+    if (containers.length > 1) {
+        console.log(`[Turnstile] Eliminando ${containers.length - 1} CAPTCHA(s) duplicado(s).`);
+        for (let i = 1; i < containers.length; i++) {
+            containers[i].remove();
+        }
+    }
+}
+
 // Evitar doble inicialización
 if (!window._turnstileInitialized) {
     window._turnstileInitialized = true;
-
-    // Definir la función dentro del mismo alcance para evitar errores
-    function removeDuplicateCaptchas() {
-        const containers = document.querySelectorAll(".cf-turnstile");
-        if (containers.length > 1) {
-            console.log(`[Turnstile] Eliminando ${containers.length - 1} CAPTCHA(s) duplicado(s).`);
-            for (let i = 1; i < containers.length; i++) {
-                containers[i].remove();
-            }
-        }
-    }
 
     // Observar cambios en el DOM para evitar CAPTCHA duplicado
     const observer = new MutationObserver(() => removeDuplicateCaptchas());
@@ -53,12 +53,8 @@ const TurnstileValidator = {
     },
 
     setup: function () {
-        // Asegurar que la función removeDuplicateCaptchas esté definida antes de llamarla
-        if (typeof removeDuplicateCaptchas === "function") {
-            removeDuplicateCaptchas();
-        } else {
-            console.error("[Turnstile] La función removeDuplicateCaptchas no está definida.");
-        }
+        // Llamar directamente a la función global
+        removeDuplicateCaptchas();
 
         // Verificar si el CAPTCHA ya está en el formulario
         const captchaContainer = document.querySelector(".cf-turnstile");
