@@ -290,13 +290,6 @@ class SecurityAuthSignup(AuthSignupHome):
                 }
                 
                 _logger.debug(f"Enviando correo con código {code} a {email}")
-
-                mail_id = template.send_mail(
-                    request.env.user.id, email_values=mail_values, force_send=True
-                )
-                
-                _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
-
                         else:
                 _logger.error(f"No se encontró la plantilla de correo para verificación de registro")
         except Exception as e:
