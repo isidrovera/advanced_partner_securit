@@ -284,15 +284,11 @@ class SecurityAuthSignup(AuthSignupHome):
             if template:
                 _logger.debug(f"Usando plantilla de correo ID: {template.id}")
 
-                # Definir el contexto correctamente
-                ctx_values = {
-                    'verification_code': code,
-                    'expiry_hours': 0.5,  # 30 minutos
-                    'email_to': email,
-                }
-
                 # Enviar el correo con el contexto adecuado
-                mail_id = template.with_context(**ctx_values).send_mail(
+                mail_id = template.with_context(
+                    verification_code=code,
+                    expiry_hours=0.5  # 30 minutos
+                ).send_mail(
                     request.env.user.id, force_send=True
                 )
 
