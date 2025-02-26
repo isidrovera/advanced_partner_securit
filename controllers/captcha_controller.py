@@ -281,24 +281,29 @@ class SecurityAuthSignup(AuthSignupHome):
         try:
             # Obtener la plantilla de correo
             template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification').sudo()
-            if template:
-                _logger.debug(f"Usando plantilla de correo ID: {template.id}")
-
-                # Enviar el correo con el contexto adecuado
-                mail_id = template.with_context(
-                    verification_code=code,
-                    expiry_hours=0.5  # 30 minutos
-                ).send_mail(
-                    request.env.user.id, force_send=True
-                )
-
-                _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
-            else:
+            if not template:
                 _logger.error("No se encontró la plantilla de correo para verificación de registro")
+                raise UserError(_("No se pudo encontrar la plantilla de correo. Contacte al soporte."))
+
+            _logger.debug(f"Usando plantilla de correo ID: {template.id}")
+
+            # Generar el correo asegurándonos de que 'email_to' es el destinatario correcto
+            email_values = {
+                'email_to': email,
+                'email_cc': False,  # No enviar copias
+                'auto_delete': True,  # Eliminar el mensaje después de enviarlo
+            }
+
+            mail_id = template.with_context(
+                verification_code=code,
+                expiry_hours=0.5  # 30 minutos
+            ).send_mail(request.env.user.id, email_values=email_values, force_send=True)
+
+            _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
+
         except Exception as e:
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
-
 
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
