@@ -212,19 +212,18 @@ class SecurityAuthSignup(AuthSignupHome):
 
                     _logger.info(f"Procediendo con registro final para: {verification_email}")
 
-                    # CAMBIO PRINCIPAL: En lugar de llamar al método padre, usar directamente do_signup
+                    # Implementación para evitar el uso de get_request()
                     try:
-                        # Implementación para evitar el uso de get_request
+                        # Crear el usuario con do_signup
                         self.do_signup(qcontext)
-                        uid = request.env.ref('base.public_user').id
                         
-                        # Autenticar al usuario recién creado
+                        # Hacer commit de la transacción actual
                         request.env.cr.commit()
-                        uid = request.session.authenticate(request.env.cr.dbname, 
-                                                        verification_email, 
-                                                        kw.get('password'))
                         
-                        if uid is not False:
+                        # Autenticar al usuario - CORREGIDO (solo 3 argumentos)
+                        uid = request.session.authenticate(verification_email, kw.get('password'))
+                        
+                        if uid:
                             # Si la autenticación fue exitosa, redirigir al home
                             return request.redirect('/web')
                         else:
