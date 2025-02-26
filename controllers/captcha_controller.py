@@ -32,19 +32,28 @@ class SecurityAuthSignup(AuthSignupHome):
         # Agregar la verificación al contexto si existe
         verification_code = request.session.get('verification_code')
         verification_email = request.session.get('verification_email')
-        verification_expiry = request.session.get('verification_expiry')
+        verification_expiry_str = request.session.get('verification_expiry')
         
-        if verification_code and verification_email and verification_expiry:
+        if verification_code and verification_email and verification_expiry_str:
             now = fields.Datetime.now()
-            _logger.debug(f"Verificando estado de código para {verification_email}, expira: {verification_expiry}, ahora: {now}")
-            
-            if now <= verification_expiry:
-                qcontext['verification_email'] = verification_email
-                qcontext['verification_sent'] = True
-                _logger.debug(f"Código de verificación válido para {verification_email}")
-            else:
-                # Limpiar códigos expirados
-                _logger.info(f"Limpiando código expirado para {verification_email}")
+            try:
+                # Convertir la cadena ISO a datetime
+                verification_expiry = fields.Datetime.from_string(verification_expiry_str)
+                _logger.debug(f"Verificando estado de código para {verification_email}, expira: {verification_expiry}, ahora: {now}")
+                
+                if now <= verification_expiry:
+                    qcontext['verification_email'] = verification_email
+                    qcontext['verification_sent'] = True
+                    _logger.debug(f"Código de verificación válido para {verification_email}")
+                else:
+                    # Limpiar códigos expirados
+                    _logger.info(f"Limpiando código expirado para {verification_email}")
+                    request.session.pop('verification_code', None)
+                    request.session.pop('verification_email', None)
+                    request.session.pop('verification_expiry', None)
+            except Exception as e:
+                _logger.error(f"Error al procesar fecha de expiración: {str(e)}", exc_info=True)
+                # Limpiar datos de sesión inválidos
                 request.session.pop('verification_code', None)
                 request.session.pop('verification_email', None)
                 request.session.pop('verification_expiry', None)
@@ -89,12 +98,15 @@ class SecurityAuthSignup(AuthSignupHome):
                     verification_code = self._generate_verification_code()
                     verification_expiry = fields.Datetime.now() + timedelta(minutes=30)
                     
+                    # Convertir datetime a string ISO para almacenamiento en sesión
+                    verification_expiry_str = fields.Datetime.to_string(verification_expiry)
+                    
                     _logger.debug(f"Generado código de verificación: {verification_code} para: {email}, expira: {verification_expiry}")
                     
                     # Guardar en sesión
                     request.session['verification_code'] = verification_code
                     request.session['verification_email'] = email
-                    request.session['verification_expiry'] = verification_expiry
+                    request.session['verification_expiry'] = verification_expiry_str  # Guardar como string
                     request.session['registration_state'] = 'verify'
                     
                     # Enviar correo
@@ -121,7 +133,7 @@ class SecurityAuthSignup(AuthSignupHome):
             # 2. Segundo paso: validación del código
             elif registration_state == 'verify' and kw.get('verification_code'):
                 stored_code = request.session.get('verification_code')
-                verification_expiry = request.session.get('verification_expiry')
+                verification_expiry_str = request.session.get('verification_expiry')
                 verification_email = request.session.get('verification_email')
                 user_code = kw.get('verification_code', '').strip()
                 
@@ -129,34 +141,42 @@ class SecurityAuthSignup(AuthSignupHome):
                 
                 now = fields.Datetime.now()
                 
-                if not stored_code or not verification_expiry:
+                if not stored_code or not verification_expiry_str:
                     _logger.warning(f"No se encontró código almacenado o fecha de expiración para {verification_email}")
                     qcontext['error'] = _("Ha ocurrido un error con el código de verificación. Por favor, solicite uno nuevo.")
                     request.session['registration_state'] = 'pre'
                     return request.render('auth_signup.signup', qcontext)
                 
-                if now > verification_expiry:
-                    _logger.warning(f"Código expirado para {verification_email}, expiración: {verification_expiry}, ahora: {now}")
-                    qcontext['error'] = _("El código de verificación ha expirado. Por favor, solicite uno nuevo.")
-                    request.session['registration_state'] = 'pre'
-                    return request.render('auth_signup.signup', qcontext)
-                
-                if user_code != stored_code:
-                    _logger.warning(f"Código incorrecto para {verification_email}: esperado {stored_code}, recibido {user_code}")
-                    qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
+                try:
+                    # Convertir la cadena ISO a datetime
+                    verification_expiry = fields.Datetime.from_string(verification_expiry_str)
+                    
+                    if now > verification_expiry:
+                        _logger.warning(f"Código expirado para {verification_email}, expiración: {verification_expiry}, ahora: {now}")
+                        qcontext['error'] = _("El código de verificación ha expirado. Por favor, solicite uno nuevo.")
+                        request.session['registration_state'] = 'pre'
+                        return request.render('auth_signup.signup', qcontext)
+                    
+                    if user_code != stored_code:
+                        _logger.warning(f"Código incorrecto para {verification_email}: esperado {stored_code}, recibido {user_code}")
+                        qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
+                        return request.render('auth_signup_security.signup_verification', qcontext)
+                    
+                    # Código correcto, proceder al registro final
+                    _logger.info(f"Código verificado correctamente para {verification_email}")
+                    request.session['registration_state'] = 'submit'
+                    qcontext['verified'] = True
+                    
+                    # Preparar datos para el formulario final
+                    qcontext['email'] = verification_email
+                    
+                    # Renderizar formulario final
+                    _logger.info(f"Redirigiendo a formulario final para: {verification_email}")
+                    return request.render('auth_signup_security.signup_final', qcontext)
+                except Exception as e:
+                    _logger.error(f"Error al procesar verificación: {str(e)}", exc_info=True)
+                    qcontext['error'] = _("Ha ocurrido un error al verificar el código. Por favor, inténtelo de nuevo.")
                     return request.render('auth_signup_security.signup_verification', qcontext)
-                
-                # Código correcto, proceder al registro final
-                _logger.info(f"Código verificado correctamente para {verification_email}")
-                request.session['registration_state'] = 'submit'
-                qcontext['verified'] = True
-                
-                # Preparar datos para el formulario final
-                qcontext['email'] = verification_email
-                
-                # Renderizar formulario final
-                _logger.info(f"Redirigiendo a formulario final para: {verification_email}")
-                return request.render('auth_signup_security.signup_final', qcontext)
                 
             # 3. Tercer paso: registro final
             elif registration_state == 'submit':
