@@ -188,12 +188,18 @@ class SecurityAuthSignup(AuthSignupHome):
                     qcontext['error'] = _("No se pudo obtener el correo electrónico para el registro. Intente de nuevo.")
                     return request.render('advanced_partner_securit.signup_final', qcontext)
 
-                # Asegurar que `login` no esté vacío
+                # Asegurar que los datos necesarios estén en qcontext y kw
+                qcontext['login'] = verification_email
+                qcontext['email'] = verification_email
+                qcontext['name'] = kw.get('name')
+                qcontext['password'] = kw.get('password')
+                
+                # También asegurar que estén en kw
                 kw['login'] = verification_email
-                kw['email'] = verification_email  # Odoo usa `email` en algunos casos
+                kw['email'] = verification_email
                 
                 try:
-                    _logger.debug(f"Registrando usuario con email: {kw['login']}")
+                    _logger.debug(f"Registrando usuario con email: {verification_email}")
 
                     # Registrar IP
                     self._register_ip_usage()
@@ -206,15 +212,35 @@ class SecurityAuthSignup(AuthSignupHome):
 
                     _logger.info(f"Procediendo con registro final para: {verification_email}")
 
-                    # Proceder con el registro estándar
-                    return super(SecurityAuthSignup, self).web_auth_signup(*args, **kw)
+                    # CAMBIO PRINCIPAL: En lugar de llamar al método padre, usar directamente do_signup
+                    try:
+                        # Implementación para evitar el uso de get_request
+                        self.do_signup(qcontext)
+                        uid = request.env.ref('base.public_user').id
+                        
+                        # Autenticar al usuario recién creado
+                        request.env.cr.commit()
+                        uid = request.session.authenticate(request.env.cr.dbname, 
+                                                        verification_email, 
+                                                        kw.get('password'))
+                        
+                        if uid is not False:
+                            # Si la autenticación fue exitosa, redirigir al home
+                            return request.redirect('/web')
+                        else:
+                            # Si la autenticación falló pero el usuario se creó, ir a login
+                            qcontext['success'] = _("El registro se ha completado correctamente. Por favor, inicie sesión.")
+                            return request.redirect('/web/login')
+                    except Exception as e:
+                        _logger.error(f"Error en do_signup: {str(e)}", exc_info=True)
+                        qcontext['error'] = str(e)
+                        return request.render('advanced_partner_securit.signup_final', qcontext)
 
                 except Exception as e:
                     _logger.error(f"Error en registro final para {verification_email}: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error en el proceso de registro. Por favor, inténtelo de nuevo más tarde.")
                     return request.render('advanced_partner_securit.signup_final', qcontext)
 
-        
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
         _logger.info(f"Mostrando formulario inicial de registro para IP: {request.httprequest.remote_addr}")
         request.session['registration_state'] = 'pre'
