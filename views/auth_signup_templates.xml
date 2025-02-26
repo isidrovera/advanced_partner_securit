@@ -2,10 +2,11 @@
 <odoo>
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
-            <!-- Cloudflare Turnstile -->
+            <!-- Cloudflare Turnstile - Solo ID único -->
             <div class="mb-3 field-captcha">
                 <label class="form-label">Verificación de Seguridad</label>
-                <div id="cf-turnstile-container" class="cf-turnstile"
+                <!-- Añadir atributo t-attf-id para asegurar un ID único -->
+                <div t-attf-id="cf-turnstile-container-{{ random() }}" class="cf-turnstile"
                      data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK"
                      data-theme="light">
                 </div>
@@ -13,11 +14,14 @@
                 <!-- Campo oculto para almacenar el token del Captcha -->
                 <input type="hidden" name="cf-turnstile-response" id="cf-turnstile-response"/>
 
-                <div t-if="error and error.get('captcha')"
-                     class="alert alert-danger mt-2"
-                     role="alert">
-                    <t t-esc="error.get('captcha')"/>
-                </div>
+                <!-- Cambio en la forma de verificar el error para evitar problemas con objetos Markup -->
+                <t t-if="error">
+                    <div t-if="isinstance(error, dict) and error.get('captcha')"
+                         class="alert alert-danger mt-2"
+                         role="alert">
+                        <t t-esc="error.get('captcha')"/>
+                    </div>
+                </t>
             </div>
 
             <!-- Términos y condiciones -->
@@ -32,11 +36,14 @@
                         Acepto los <a href="/page/terminos" target="_blank">términos y condiciones</a>
                     </label>
                 </div>
-                <div t-if="error and error.get('terms')"
-                     class="alert alert-danger mt-2"
-                     role="alert">
-                    <t t-esc="error.get('terms')"/>
-                </div>
+                <!-- Cambio en la forma de verificar el error para evitar problemas con objetos Markup -->
+                <t t-if="error">
+                    <div t-if="isinstance(error, dict) and error.get('terms')"
+                         class="alert alert-danger mt-2"
+                         role="alert">
+                        <t t-esc="error.get('terms')"/>
+                    </div>
+                </t>
             </div>
 
             <!-- Mensaje de verificación de correo -->
