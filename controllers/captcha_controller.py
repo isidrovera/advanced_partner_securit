@@ -14,15 +14,16 @@ class TurnstileAuthSignup(AuthSignupHome):
     def _add_csp_headers(self, response):
         """Agrega encabezados CSP a la respuesta si es necesario"""
         if hasattr(response, 'headers'):
-            # Política CSP más permisiva para permitir que Turnstile funcione correctamente
+            # Política CSP más permisiva para permitir que Turnstile y Google Fonts funcionen
             csp = "default-src 'self'; " + \
-                  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
-                  "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
-                  "style-src 'self' 'unsafe-inline'; " + \
-                  "frame-src 'self' https://challenges.cloudflare.com; " + \
-                  "connect-src 'self' https://challenges.cloudflare.com; " + \
-                  "img-src 'self' data: https://challenges.cloudflare.com; " + \
-                  "font-src 'self' data:;"
+                  "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://challenges.cloudflare.com https://*.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
+                  "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' 'unsafe-hashes' https://challenges.cloudflare.com https://*.cloudflare.com https://www.gstatic.com https://*.gstatic.com; " + \
+                  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + \
+                  "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com; " + \
+                  "font-src 'self' data: https://fonts.gstatic.com; " + \
+                  "frame-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com; " + \
+                  "connect-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com; " + \
+                  "img-src 'self' data: https://challenges.cloudflare.com https://*.cloudflare.com;"
             
             # Establecer los encabezados
             response.headers['Content-Security-Policy'] = csp

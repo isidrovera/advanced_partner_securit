@@ -59,27 +59,22 @@
                 <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
             </div>
             
-            <!-- Cargar solo el script de Cloudflare Turnstile directamente -->
+            <!-- Cargar solo el script de Cloudflare Turnstile con render explicit -->
             <script type="text/javascript" src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"></script>
             
             <!-- Script inline para inicializar Turnstile -->
             <script type="text/javascript">
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Inicializar Turnstile después de que el DOM esté listo
-                    if (typeof turnstile !== 'undefined') {
-                        turnstile.ready(function() {
-                            renderTurnstile();
-                        });
-                    } else {
-                        // Si turnstile no está disponible, intentar después de 1 segundo
-                        setTimeout(function() {
-                            if (typeof turnstile !== 'undefined') {
-                                turnstile.ready(function() {
-                                    renderTurnstile();
-                                });
-                            }
-                        }, 1000);
-                    }
+                    // Esperar a que se cargue Turnstile y el DOM
+                    var turnstileCheck = setInterval(function() {
+                        if (typeof turnstile !== 'undefined') {
+                            clearInterval(turnstileCheck);
+                            
+                            turnstile.ready(function() {
+                                renderTurnstile();
+                            });
+                        }
+                    }, 100);
                     
                     function renderTurnstile() {
                         const container = document.getElementById('cf-turnstile-container');
@@ -99,9 +94,13 @@
                                 sitekey: sitekey,
                                 callback: function(token) {
                                     document.getElementById('cf-turnstile-response').value = token;
+                                    console.log("Token Turnstile generado correctamente");
                                 },
-                                'error-callback': function() {
-                                    console.log('Ha ocurrido un error con la verificación de seguridad');
+                                'error-callback': function(error) {
+                                    console.error('Error en Turnstile:', error);
+                                },
+                                'timeout-callback': function() {
+                                    console.log('Tiempo de espera agotado en la verificación');
                                 }
                             });
                         } catch (error) {
