@@ -1,27 +1,21 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
 
-// Function to remove duplicate captchas - declared in global scope
-function removeDuplicateCaptchas() {
-    const containers = document.querySelectorAll(".cf-turnstile");
-    if (containers.length > 1) {
-        console.log(`[Turnstile] Eliminando ${containers.length - 1} CAPTCHA(s) duplicado(s).`);
-        for (let i = 1; i < containers.length; i++) {
-            containers[i].remove();
+// Create a namespace for our Turnstile functionality to avoid scope issues
+window._TurnstileHelper = window._TurnstileHelper || {
+    // Function to remove duplicate captchas - accessible through the namespace
+    removeDuplicateCaptchas: function() {
+        const containers = document.querySelectorAll(".cf-turnstile");
+        if (containers.length > 1) {
+            console.log(`[Turnstile] Eliminando ${containers.length - 1} CAPTCHA(s) duplicado(s).`);
+            for (let i = 1; i < containers.length; i++) {
+                containers[i].remove();
+            }
         }
-    }
-}
-
-// Evitar doble inicialización
-if (!window._turnstileInitialized) {
-    window._turnstileInitialized = true;
-
-    // Observar cambios en el DOM para evitar CAPTCHA duplicado
-    const observer = new MutationObserver(() => removeDuplicateCaptchas());
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Cargar el script de Turnstile si no está presente
-    function loadTurnstileScript() {
+    },
+    
+    // Load the Turnstile script
+    loadTurnstileScript: function() {
         if (document.querySelector('script[src*="turnstile/v0/api.js"]')) {
             console.log("[Turnstile] Script ya cargado.");
             return;
@@ -37,8 +31,18 @@ if (!window._turnstileInitialized) {
         };
         document.head.appendChild(script);
     }
+};
 
-    loadTurnstileScript();
+// Initialize only once
+if (!window._turnstileInitialized) {
+    window._turnstileInitialized = true;
+
+    // Observe DOM changes to prevent duplicate CAPTCHAs
+    const observer = new MutationObserver(() => window._TurnstileHelper.removeDuplicateCaptchas());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Load the Turnstile script
+    window._TurnstileHelper.loadTurnstileScript();
 }
 
 const TurnstileValidator = {
@@ -53,8 +57,12 @@ const TurnstileValidator = {
     },
 
     setup: function () {
-        // Llamar directamente a la función global
-        removeDuplicateCaptchas();
+        // Use the function from the global namespace
+        if (window._TurnstileHelper && typeof window._TurnstileHelper.removeDuplicateCaptchas === "function") {
+            window._TurnstileHelper.removeDuplicateCaptchas();
+        } else {
+            console.error("[Turnstile] La función removeDuplicateCaptchas no está disponible en el namespace global.");
+        }
 
         // Verificar si el CAPTCHA ya está en el formulario
         const captchaContainer = document.querySelector(".cf-turnstile");
