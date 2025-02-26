@@ -39,8 +39,7 @@
                         </div>
                     </div>
                 </div>
-            </field>
-            <field name="lang"><t t-out="object.lang or 'es_ES'"/></field>
+            </field>            
             <field name="auto_delete" eval="True"/>
         </record>
     </data>
