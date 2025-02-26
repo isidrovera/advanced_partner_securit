@@ -1,9 +1,8 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
 
-// Create a namespace for our Turnstile functionality to avoid scope issues
+// Namespace global para las funciones de Turnstile
 window._TurnstileHelper = window._TurnstileHelper || {
-    // Function to remove duplicate captchas - accessible through the namespace
     removeDuplicateCaptchas: function() {
         const containers = document.querySelectorAll(".cf-turnstile");
         if (containers.length > 1) {
@@ -14,7 +13,7 @@ window._TurnstileHelper = window._TurnstileHelper || {
         }
     },
     
-    // Load the Turnstile script
+    // Cargar el script de Turnstile de manera segura (respetando CSP)
     loadTurnstileScript: function() {
         if (document.querySelector('script[src*="turnstile/v0/api.js"]')) {
             console.log("[Turnstile] Script ya cargado.");
@@ -23,26 +22,41 @@ window._TurnstileHelper = window._TurnstileHelper || {
 
         console.log("[Turnstile] Cargando script...");
         const script = document.createElement("script");
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
         script.async = true;
         script.defer = true;
-        script.onload = () => {
-            console.log("[Turnstile] Script cargado correctamente.");
+        
+        // Agregar onload callback como una función global para evitar problemas de CSP
+        window.onTurnstileLoad = function() {
+            console.log("[Turnstile] Script cargado correctamente y listo para renderizar.");
+            // Si hay un elemento turnstile presente, podemos forzar el renderizado
+            const turnstileContainers = document.querySelectorAll(".cf-turnstile");
+            if (turnstileContainers.length > 0) {
+                console.log("[Turnstile] Forzando renderizado de captchas encontrados.");
+                // El renderizado se manejará automáticamente por Turnstile
+            }
         };
+        
         document.head.appendChild(script);
     }
 };
 
-// Initialize only once
+// Inicializar solo una vez
 if (!window._turnstileInitialized) {
     window._turnstileInitialized = true;
 
-    // Observe DOM changes to prevent duplicate CAPTCHAs
-    const observer = new MutationObserver(() => window._TurnstileHelper.removeDuplicateCaptchas());
+    // Observar cambios en el DOM para evitar CAPTCHA duplicado
+    const observer = new MutationObserver(() => {
+        if (window._TurnstileHelper && typeof window._TurnstileHelper.removeDuplicateCaptchas === "function") {
+            window._TurnstileHelper.removeDuplicateCaptchas();
+        }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Load the Turnstile script
-    window._TurnstileHelper.loadTurnstileScript();
+    // Cargar el script de Turnstile
+    if (window._TurnstileHelper && typeof window._TurnstileHelper.loadTurnstileScript === "function") {
+        window._TurnstileHelper.loadTurnstileScript();
+    }
 }
 
 const TurnstileValidator = {
@@ -57,7 +71,7 @@ const TurnstileValidator = {
     },
 
     setup: function () {
-        // Use the function from the global namespace
+        // Usar la función desde el namespace global
         if (window._TurnstileHelper && typeof window._TurnstileHelper.removeDuplicateCaptchas === "function") {
             window._TurnstileHelper.removeDuplicateCaptchas();
         } else {
@@ -85,6 +99,7 @@ const TurnstileValidator = {
 
         form.addEventListener("submit", this.validateTurnstile.bind(this));
         form.dataset.turnstileValidatorAttached = "true";
+        console.log("[Turnstile] Validador adjuntado al formulario.");
     },
 
     validateTurnstile: function (ev) {
@@ -110,7 +125,7 @@ const TurnstileValidator = {
 };
 
 // Inicializar solo validación
-setTimeout(() => TurnstileValidator.init(), 100);
+setTimeout(() => TurnstileValidator.init(), 300); // Aumentado el tiempo para asegurar que la página esté completamente cargada
 
 registry.category("services").add("turnstile_validator", {
     dependencies: [],
