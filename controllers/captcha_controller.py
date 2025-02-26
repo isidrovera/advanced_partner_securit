@@ -282,19 +282,29 @@ class SecurityAuthSignup(AuthSignupHome):
             # Usar sudo() para acceder y enviar el correo con permisos de administrador
             template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification').sudo()
             if template:
+                # Reemplazar directamente en el body_html de la plantilla
+                body_html = template.body_html.replace("{{ ctx['verification_code'] }}", code)\
+                                            .replace("{{ ctx['expiry_hours'] }}", str(0.5))
+                
                 mail_values = {
                     'email_to': email,
-                    'body_html': template.body_html.replace("{{ ctx['verification_code'] }}", code)
-                                                .replace("{{ ctx['expiry_hours'] }}", str(0.5)),
+                    'body_html': body_html,
                     'subject': template.subject,
                 }
                 
                 _logger.debug(f"Enviando correo con código {code} a {email}")
-                        else:
-                _logger.error(f"No se encontró la plantilla de correo para verificación de registro")
+
+                mail_id = template.send_mail(
+                    request.env.user.id, email_values=mail_values, force_send=True
+                )
+                
+                _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
+            else:
+                _logger.error("No se encontró la plantilla de correo para verificación de registro")
         except Exception as e:
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
+
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
         ip = request.httprequest.remote_addr
