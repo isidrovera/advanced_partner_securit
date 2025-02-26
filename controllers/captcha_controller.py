@@ -220,8 +220,11 @@ class SecurityAuthSignup(AuthSignupHome):
                         # Hacer commit de la transacción actual
                         request.env.cr.commit()
                         
-                        # Autenticar al usuario - CORREGIDO (solo 3 argumentos)
-                        uid = request.session.authenticate(verification_email, kw.get('password'))
+                        # Obtener el nombre de la base de datos actual
+                        db_name = request.session.db
+                        
+                        # Autenticar al usuario correctamente
+                        uid = request.session.authenticate(db_name, verification_email, kw.get('password'))
                         
                         if uid:
                             # Si la autenticación fue exitosa, redirigir al home
