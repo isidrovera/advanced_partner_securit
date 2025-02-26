@@ -12,25 +12,11 @@ class TurnstileAuthSignup(AuthSignupHome):
     """
     
     def _add_csp_headers(self, response):
-        """Agrega encabezados CSP a la respuesta si es necesario"""
-        if hasattr(response, 'headers'):
-            # Quitar cualquier CSP existente para evitar conflictos
-            if 'Content-Security-Policy' in response.headers:
-                del response.headers['Content-Security-Policy']
-            
-            # CSP permisivo pero específico para Cloudflare Turnstile
-            csp = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; " + \
-                "script-src * 'unsafe-inline' 'unsafe-eval'; " + \
-                "connect-src * 'unsafe-inline'; " + \
-                "img-src * data: blob: 'unsafe-inline'; " + \
-                "frame-src *; " + \
-                "style-src * 'unsafe-inline'; " + \
-                "font-src * data:"
-            
-            response.headers['Content-Security-Policy'] = csp
-            _logger.info("CSP permisivo agregado para Turnstile")
+        """Temporalmente deshabilita CSP para solucionar problemas con Turnstile"""
+        if hasattr(response, 'headers') and 'Content-Security-Policy' in response.headers:
+            del response.headers['Content-Security-Policy']
+            _logger.info("CSP deshabilitado temporalmente para depuración")
         return response
-        
     def get_auth_signup_qcontext(self):
         """Sobrescribe para asegurar que providers siempre esté definido"""
         qcontext = super(TurnstileAuthSignup, self).get_auth_signup_qcontext()
