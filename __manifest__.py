@@ -17,8 +17,8 @@
     'data': [
         'security/ir.model.access.csv',
         'data/system_parameters.xml',
-        'views/partner_views.xml',
-        'views/auth_signup_templates.xml',
+        'views/partner_views.xml',        
+        'views/signup_verification.xml',
         'data/mail_templates.xml',
         'data/ir_cron.xml',
     ],

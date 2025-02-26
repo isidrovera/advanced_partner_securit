@@ -1,145 +1,203 @@
 # -*- coding: utf-8 -*-
-from odoo import http, _
+from odoo import http, _, fields
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
-import requests
-import logging
 from odoo.http import request
+from odoo.exceptions import UserError
+from datetime import datetime, timedelta
+import random
+import string
+import logging
 
 _logger = logging.getLogger(__name__)
-class TurnstileAuthSignup(AuthSignupHome):
+
+class SecurityAuthSignup(AuthSignupHome):
     """
-    Sobrescribe el controlador de registro original para añadir CSP y validación de Turnstile
+    Sobrescribe el controlador de registro original para añadir controles de seguridad avanzados:
+    1. Restricción por IP: máximo un usuario por día
+    2. Validación de dominios de correo confiables
+    3. Verificación por código enviado al correo
     """
     
-    def _add_csp_headers(self, response):
-        """Temporalmente deshabilita CSP para solucionar problemas con Turnstile"""
-        if hasattr(response, 'headers') and 'Content-Security-Policy' in response.headers:
-            del response.headers['Content-Security-Policy']
-            _logger.info("CSP deshabilitado temporalmente para depuración")
-        return response
     def get_auth_signup_qcontext(self):
-        """Sobrescribe para asegurar que providers siempre esté definido"""
-        qcontext = super(TurnstileAuthSignup, self).get_auth_signup_qcontext()
+        """Sobrescribe para asegurar que providers esté definido y agregar datos de seguridad"""
+        qcontext = super(SecurityAuthSignup, self).get_auth_signup_qcontext()
         
         # Asegurarse de que providers esté definido
         if 'providers' not in qcontext or qcontext['providers'] is None:
             qcontext['providers'] = []
+            
+        # Agregar la verificación al contexto si existe
+        verification_code = request.session.get('verification_code')
+        verification_email = request.session.get('verification_email')
+        verification_expiry = request.session.get('verification_expiry')
+        
+        if verification_code and verification_email and verification_expiry:
+            now = fields.Datetime.now()
+            if now <= verification_expiry:
+                qcontext['verification_email'] = verification_email
+                qcontext['verification_sent'] = True
+            else:
+                # Limpiar códigos expirados
+                request.session.pop('verification_code', None)
+                request.session.pop('verification_email', None)
+                request.session.pop('verification_expiry', None)
         
         return qcontext
     
-    @http.route()
+    @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
     def web_auth_signup(self, *args, **kw):
-        """Sobrescribe el método de registro para validar Turnstile y ajustar CSP"""
-        _logger.info("Procesando registro con validación Turnstile")
+        """Sobrescribe el método de registro para añadir controles de seguridad"""
+        qcontext = self.get_auth_signup_qcontext()
         
-        # Obtener la clave secreta
-        ICP = request.env['ir.config_parameter'].sudo()
-        turnstile_secret = ICP.get_param('website.turnstile_secret_key', 
-                                         default="0x4AAAAAAA-your_secret_key")
-        turnstile_verify_url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+        # Estado del registro: 
+        # 'pre' - Inicio del registro, muestra formulario inicial
+        # 'verify' - Enviado código, muestra formulario de verificación
+        # 'submit' - Verificado, procede al registro final
+        registration_state = request.session.get('registration_state', 'pre')
         
-        # Obtener el token de la respuesta del captcha
-        turnstile_response = kw.get('cf-turnstile-response')
-        
-        # Verificar si se está enviando un formulario (POST)
+        # Si estamos en un POST, procesamos según el estado
         if request.httprequest.method == 'POST':
-            # Inicializar el diccionario de errores
-            qcontext = self.get_auth_signup_qcontext()
-            error = {}
-            
-            # Validar aceptación de términos
-            if not kw.get('accept_terms'):
-                error['terms'] = _("Debes aceptar los términos y condiciones para registrarte.")
-            
-            # Validar captcha Turnstile
-            if not turnstile_response:
-                _logger.warning("Intento de registro sin completar captcha")
-                error['captcha'] = _("Por favor, completa la verificación de seguridad.")
-            else:
-                # Verificar el token con la API de Cloudflare
+            # 1. Primer paso: validación inicial y envío de código
+            if registration_state == 'pre' and kw.get('email'):
                 try:
-                    _logger.info("Verificando token Turnstile con Cloudflare")
-                    verification_data = {
-                        'secret': turnstile_secret,
-                        'response': turnstile_response,
-                        'remoteip': request.httprequest.remote_addr
-                    }
+                    # Validar límite de IP
+                    self._validate_ip_limit()
                     
-                    verification_response = requests.post(
-                        turnstile_verify_url, 
-                        data=verification_data,
-                        timeout=5
-                    )
+                    # Validar dominio de correo
+                    email = kw.get('email', '').strip().lower()
+                    self._validate_email_domain(email)
                     
-                    result = verification_response.json()
+                    # Si pasa validaciones, enviar código de verificación
+                    verification_code = self._generate_verification_code()
+                    verification_expiry = fields.Datetime.now() + timedelta(minutes=30)
                     
-                    if not result.get('success', False):
-                        _logger.warning(f"Verificación de Turnstile fallida: {result}")
-                        error['captcha'] = _("Verificación de seguridad fallida. Por favor, inténtalo de nuevo.")
-                    else:
-                        _logger.info("Verificación de Turnstile exitosa")
+                    # Guardar en sesión
+                    request.session['verification_code'] = verification_code
+                    request.session['verification_email'] = email
+                    request.session['verification_expiry'] = verification_expiry
+                    request.session['registration_state'] = 'verify'
                     
-                except Exception as e:
-                    _logger.error(f"Error al verificar Turnstile: {str(e)}")
-                    error['captcha'] = _("Error al verificar la seguridad. Por favor, inténtalo de nuevo.")
-            
-            # Si hay errores, mostrarlos y no continuar con el registro
-            if error:
-                qcontext.update({'error': error})
-                response = request.render('auth_signup.signup', qcontext)
-                return self._add_csp_headers(response)
+                    # Enviar correo
+                    self._send_verification_email(email, verification_code)
+                    
+                    # Actualizar contexto
+                    qcontext['verification_email'] = email
+                    qcontext['verification_sent'] = True
+                    qcontext['error'] = None
+                    
+                    # Renderizar página de verificación
+                    return request.render('auth_signup_security.signup_verification', qcontext)
+                    
+                except UserError as e:
+                    qcontext['error'] = str(e)
+                
+            # 2. Segundo paso: validación del código
+            elif registration_state == 'verify' and kw.get('verification_code'):
+                stored_code = request.session.get('verification_code')
+                verification_expiry = request.session.get('verification_expiry')
+                verification_email = request.session.get('verification_email')
+                user_code = kw.get('verification_code', '').strip()
+                
+                now = fields.Datetime.now()
+                
+                if not stored_code or not verification_expiry or now > verification_expiry:
+                    qcontext['error'] = _("El código de verificación ha expirado. Por favor, solicite uno nuevo.")
+                    request.session['registration_state'] = 'pre'
+                    return request.render('auth_signup.signup', qcontext)
+                
+                if user_code != stored_code:
+                    qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
+                    return request.render('auth_signup_security.signup_verification', qcontext)
+                
+                # Código correcto, proceder al registro final
+                request.session['registration_state'] = 'submit'
+                qcontext['verified'] = True
+                
+                # Preparar datos para el formulario final
+                qcontext['email'] = verification_email
+                
+                # Renderizar formulario final
+                return request.render('auth_signup_security.signup_final', qcontext)
+                
+            # 3. Tercer paso: registro final
+            elif registration_state == 'submit':
+                # Validar términos
+                if not kw.get('accept_terms'):
+                    qcontext['error'] = _("Debes aceptar los términos y condiciones para registrarte.")
+                    return request.render('auth_signup_security.signup_final', qcontext)
+                
+                # Añadir email verificado a los parámetros
+                kw['login'] = request.session.get('verification_email')
+                
+                # Registrar IP
+                self._register_ip_usage()
+                
+                # Limpiar datos de sesión
+                request.session.pop('verification_code', None)
+                request.session.pop('verification_email', None) 
+                request.session.pop('verification_expiry', None)
+                request.session.pop('registration_state', None)
+                
+                # Proceder con el registro estándar
+                return super(SecurityAuthSignup, self).web_auth_signup(*args, **kw)
         
-        # Continuar con el flujo original de registro si no hay errores
-        response = super(TurnstileAuthSignup, self).web_auth_signup(*args, **kw)
-        return self._add_csp_headers(response)
-        
-    @http.route()
-    def web_login(self, *args, **kw):
-        """
-        Mantiene el login original sin cambios (no requiere captcha)
-        """
-        response = super().web_login(*args, **kw)
-        return self._add_csp_headers(response)
+        # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
+        request.session['registration_state'] = 'pre'
+        return request.render('auth_signup.signup', qcontext)
     
-    @http.route()
-    def web_reset_password(self, *args, **kw):
-        """
-        Mantiene el reset de contraseña original sin cambios
-        """
-        response = super().web_reset_password(*args, **kw)
-        return self._add_csp_headers(response)
-
-    # Método para validar Turnstile mediante una ruta API
-    @http.route('/auth_signup/verify_turnstile', type='json', auth='public', website=True, csrf=False)
-    def verify_turnstile(self, token=None):
-        """
-        Endpoint para verificar el token de Turnstile mediante AJAX
-        """
-        if not token:
-            return {'success': False, 'error': 'Token no proporcionado'}
+    def _validate_ip_limit(self):
+        """Valida que una IP no haya creado más de un usuario por día"""
+        ip = request.httprequest.remote_addr
+        today = fields.Date.today()
+        yesterday = today - timedelta(days=1)
         
-        # Obtener la clave secreta de los parámetros del sistema    
+        # Buscar registros de IP en las últimas 24 horas
+        IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
+        registrations = IpRegistration.search([
+            ('ip_address', '=', ip),
+            ('create_date', '>=', yesterday)
+        ])
+        
+        if registrations:
+            raise UserError(_("Por razones de seguridad, solo se permite un registro por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
+    
+    def _validate_email_domain(self, email):
+        """Valida que el dominio de correo sea confiable"""
+        if not email or '@' not in email:
+            raise UserError(_("Por favor, proporcione una dirección de correo electrónico válida."))
+        
+        domain = email.split('@')[1].lower()
+        
+        # Obtener dominios permitidos de la configuración
         ICP = request.env['ir.config_parameter'].sudo()
-        turnstile_secret = ICP.get_param('website.turnstile_secret_key', 
-                                         default="0x4AAAAAAA-your_secret_key")
-        turnstile_verify_url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+        allowed_domains_str = ICP.get_param('auth_signup_security.allowed_email_domains', 
+                                           'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com')
+        allowed_domains = [d.strip().lower() for d in allowed_domains_str.split(',')]
         
-        try:
-            verification_data = {
-                'secret': turnstile_secret,
-                'response': token,
-                'remoteip': request.httprequest.remote_addr
+        if domain not in allowed_domains:
+            raise UserError(_("Por razones de seguridad, solo se aceptan correos de dominios confiables. Los dominios permitidos son: %s") % allowed_domains_str)
+    
+    def _generate_verification_code(self):
+        """Genera un código de verificación aleatorio de 6 dígitos"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    def _send_verification_email(self, email, code):
+        """Envía correo con código de verificación"""
+        template = request.env.ref('auth_signup_security.mail_template_user_signup_verification')
+        if template:
+            template_values = {
+                'email_to': email,
+                'verification_code': code,
+                'expiry_hours': 0.5,  # 30 minutos
             }
-            
-            verification_response = requests.post(
-                turnstile_verify_url, 
-                data=verification_data,
-                timeout=5
-            )
-            
-            result = verification_response.json()
-            return result
-            
-        except Exception as e:
-            _logger.error(f"Error al verificar Turnstile: {str(e)}")
-            return {'success': False, 'error': str(e)}
+            template.with_context(**template_values).send_mail(request.env.user.id, force_send=True)
+        _logger.info(f"Código de verificación enviado a {email}: {code}")
+    
+    def _register_ip_usage(self):
+        """Registra el uso de una IP para crear cuenta"""
+        ip = request.httprequest.remote_addr
+        IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
+        IpRegistration.create({
+            'ip_address': ip,
+            'email': request.session.get('verification_email', 'unknown')
+        })

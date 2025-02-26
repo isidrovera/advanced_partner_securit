@@ -2,33 +2,46 @@
 <odoo>
     <data noupdate="1">
         <!-- Email template for verification code -->
-        <record id="mail_template_verification_code" model="mail.template">
-            <field name="name">Verification Code</field>
-            <field name="model_id" ref="model_user_verification"/>
-            <field name="subject">Código de Verificación para tu Cuenta</field>
-            <field name="email_from">{{ object.company_id and object.company_id.email or '' }}</field>
-            <field name="email_to">{{ object.login }}</field>
+        <record id="mail_template_user_signup_verification" model="mail.template">
+            <field name="name">Auth Signup: Verification Code</field>
+            <field name="model_id" ref="base.model_res_users"/>
+            <field name="subject">Código de verificación para su registro</field>
+            <field name="email_from">{{ user.company_id.email or user.email_formatted }}</field>
+            <field name="email_to">{{ ctx['email_to'] }}</field>
             <field name="body_html" type="html">
-                <div style="padding:0; margin:0; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#333333;">
-                    <div style="background-color:#f5f5f5; padding:20px; text-align:center;">
-                        <div style="background-color:#ffffff; padding:20px; border-radius:5px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
-                            <h2 style="color:#875A7B; margin-top:0;">Código de Verificación</h2>
-                            <p>Hola <strong>{{ ctx.get('name') }}</strong>,</p>
-                            <p>Gracias por registrarte en nuestro sistema. Para completar tu registro, por favor usa el siguiente código de verificación:</p>
-                            <div style="font-size:24px; background-color:#f5f5f5; padding:15px; margin:20px 0; letter-spacing:5px; text-align:center; font-weight:bold;">
-                                {{ ctx.get('verification_code') }}
-                            </div>
-                            <p>Este código expirará en 10 minutos.</p>
-                            <p>Si no solicitaste este registro, por favor ignora este correo.</p>
-                            <div style="margin-top:30px; padding-top:20px; border-top:1px solid #e5e5e5; font-size:12px; color:#888888;">
-                                <p>Este es un correo automático, por favor no responda a este mensaje.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <div style="padding: 20px; background-color: #F8F8F8;">
+        <div style="padding: 30px; background-color: white;">
+            <h2 style="text-align: center; color: #00A09D; margin: 0 0 20px 0;">
+                Código de verificación para su registro
+            </h2>
+            <p style="padding: 0px; font-size: 15px;">
+                Estimado(a) usuario,
+            </p>
+            <p style="padding: 0px; font-size: 15px;">
+                Hemos recibido una solicitud de registro en nuestra plataforma. Para completar su registro, utilice el siguiente código de verificación:
+            </p>
+            <div style="text-align: center; margin: 30px 0px; font-size: 26px; font-weight: bold; padding: 15px; background-color: #f2f2f2; border-radius: 5px;">
+                {{ ctx['verification_code'] }}
+            </div>
+            <p style="padding: 0px; font-size: 15px;">
+                Este código es válido por {{ ctx['expiry_hours'] }} horas desde el momento en que se envió este correo.
+            </p>
+            <p style="padding: 0px; font-size: 15px;">
+                Si no ha solicitado este código, por favor ignore este mensaje.
+            </p>
+            <div style="padding-top: 30px; text-align: center;">
+                <hr style="border-top: 1px solid #e3e3e3; border-bottom: none; margin: 20px 0px;"/>
+                <h5 style="color: #999999; font-size: 12px; margin: 0px;">
+                    Mensaje enviado automáticamente, por favor no responda a este correo.
+                </h5>
+            </div>
+        </div>
+    </div>
+</div>
             </field>
+            <field name="lang">{{ object.lang }}</field>
             <field name="auto_delete" eval="True"/>
-            <field name="lang">{{ object.partner_id.lang }}</field>
         </record>
     </data>
 </odoo>
