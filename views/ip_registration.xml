@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de formulario -->
+    <record id="view_ip_registration_form" model="ir.ui.view">
+        <field name="name">auth_signup_security.ip_registration.form</field>
+        <field name="model">auth_signup_security.ip_registration</field>
+        <field name="arch" type="xml">
+            <form string="Registro de IP">
+                <sheet>
+                    <group>
+                        <field name="ip_address"/>
+                        <field name="email"/>
+                        <field name="create_date" readonly="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vista de árbol/lista -->
+    <record id="view_ip_registration_tree" model="ir.ui.view">
+        <field name="name">auth_signup_security.ip_registration.tree</field>
+        <field name="model">auth_signup_security.ip_registration</field>
+        <field name="arch" type="xml">
+            <list string="Registros de IP">
+                <field name="ip_address"/>
+                <field name="email"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vista de búsqueda -->
+    <record id="view_ip_registration_search" model="ir.ui.view">
+        <field name="name">auth_signup_security.ip_registration.search</field>
+        <field name="model">auth_signup_security.ip_registration</field>
+        <field name="arch" type="xml">
+            <search string="Buscar registros de IP">
+                <field name="ip_address"/>
+                <field name="email"/>
+                <field name="create_date"/>
+                <filter string="Hoy" name="today" domain="[('create_date','&gt;=',context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Ayer" name="yesterday" domain="[('create_date','&gt;=',(context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')),('create_date','&lt;',context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Últimos 7 días" name="last_week" domain="[('create_date','&gt;=',(context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Dirección IP" name="group_by_ip" context="{'group_by': 'ip_address'}"/>
+                    <filter string="Fecha" name="group_by_date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Vista de gráfico (dashboard) -->
+    <record id="view_ip_registration_graph" model="ir.ui.view">
+        <field name="name">auth_signup_security.ip_registration.graph</field>
+        <field name="model">auth_signup_security.ip_registration</field>
+        <field name="arch" type="xml">
+            <graph string="Registros de IP por día" type="bar">
+                <field name="create_date" interval="day"/>
+                <field name="ip_address" type="count"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Vista de pivot -->
+    <record id="view_ip_registration_pivot" model="ir.ui.view">
+        <field name="name">auth_signup_security.ip_registration.pivot</field>
+        <field name="model">auth_signup_security.ip_registration</field>
+        <field name="arch" type="xml">
+            <pivot string="Análisis de Registros de IP">
+                <field name="create_date" interval="day" type="row"/>
+                <field name="ip_address" type="col"/>
+                <field name="ip_address" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Acción de ventana para acceder a las vistas -->
+    <record id="action_ip_registration" model="ir.actions.act_window">
+        <field name="name">Registros de IP</field>
+        <field name="res_model">auth_signup_security.ip_registration</field>
+        <field name="view_mode">list,form,graph,pivot</field>
+        <field name="context">{'search_default_today': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No hay registros de IP aún.
+            </p>
+            <p>
+                Este módulo registra las direcciones IP que han creado cuentas en el sistema.
+                Se permite un máximo de 3 cuentas por IP al día para prevenir registros automáticos.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menú para acceder a la acción -->
+    <menuitem id="menu_security_ip_registration"
+              name="Registros de IP"
+              parent="base.menu_users"
+              action="action_ip_registration"
+              sequence="20"
+              groups="base.group_system"/>
+
+    <!-- Configuración de dominios permitidos -->
+    <menuitem id="menu_security_settings"
+              name="Seguridad de Registro"
+              parent="base.menu_administration"
+              sequence="50"
+              groups="base.group_system"/>
+
+    <record id="action_allowed_domains_config" model="ir.actions.act_window">
+        <field name="name">Dominios Permitidos</field>
+        <field name="res_model">ir.config_parameter</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="domain">[('key', '=', 'auth_signup_security.allowed_email_domains')]</field>
+        <field name="context">{'default_key': 'auth_signup_security.allowed_email_domains', 'default_value': 'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com'}</field>
+        <field name="help" type="html">
+            <p>
+                Configure los dominios de correo electrónico permitidos para registros.
+                Separe los dominios con comas. Por ejemplo: gmail.com,hotmail.com,outlook.com
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_allowed_domains"
+              name="Dominios Permitidos"
+              parent="menu_security_settings"
+              action="action_allowed_domains_config"
+              sequence="10"
+              groups="base.group_system"/>
+</odoo>
