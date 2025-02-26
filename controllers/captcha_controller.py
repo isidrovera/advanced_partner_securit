@@ -277,33 +277,32 @@ class SecurityAuthSignup(AuthSignupHome):
     def _send_verification_email(self, email, code):
         """Envía correo con código de verificación"""
         _logger.debug(f"Preparando envío de correo con código {code} a {email}")
-        
+
         try:
-            # Usar sudo() para acceder y enviar el correo con permisos de administrador
+            # Obtener la plantilla de correo
             template = request.env.ref('advanced_partner_securit.mail_template_user_signup_verification').sudo()
             if template:
-                # Reemplazar directamente en el body_html de la plantilla
-                body_html = template.body_html.replace("{{ ctx['verification_code'] }}", code)\
-                                            .replace("{{ ctx['expiry_hours'] }}", str(0.5))
-                
-                mail_values = {
-                    'email_to': email,
-                    'body_html': body_html,
-                    'subject': template.subject,
-                }
-                
-                _logger.debug(f"Enviando correo con código {code} a {email}")
+                _logger.debug(f"Usando plantilla de correo ID: {template.id}")
 
-                mail_id = template.send_mail(
-                    request.env.user.id, email_values=mail_values, force_send=True
+                # Definir el contexto correctamente
+                ctx_values = {
+                    'verification_code': code,
+                    'expiry_hours': 0.5,  # 30 minutos
+                    'email_to': email,
+                }
+
+                # Enviar el correo con el contexto adecuado
+                mail_id = template.with_context(**ctx_values).send_mail(
+                    request.env.user.id, force_send=True
                 )
-                
+
                 _logger.info(f"Correo enviado a {email}, código: {code}, ID del correo: {mail_id}")
             else:
                 _logger.error("No se encontró la plantilla de correo para verificación de registro")
         except Exception as e:
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
+
 
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
