@@ -2,163 +2,123 @@
 import { registry } from "@web/core/registry";
 
 /**
- * TurnstileValidator - Servicio para manejar la validación de Cloudflare Turnstile en Odoo
- * Solución que resuelve problemas de CSP y scope
+ * TurnstileHandler - Servicio simplificado para manejar Cloudflare Turnstile
  */
-const TurnstileValidator = {
-    // Configuración de Turnstile
-    config: {
-        scriptSrc: "https://challenges.cloudflare.com/turnstile/v0/api.js",
-        containerSelector: ".cf-turnstile, #cf-turnstile-container",
-        formSelector: "form.oe_signup_form",
-        responseInputSelector: 'input[name="cf-turnstile-response"]',
-        loadingDelay: 500,  // ms para esperar antes de verificar el renderizado
-    },
-
+const TurnstileHandler = {
     /**
-     * Inicializa el validador
+     * Inicializa el controlador
      */
     init: function() {
-        console.log("[Turnstile] Iniciando validación...");
-
-        // Registrar la función global para Turnstile antes de cargar el script
+        console.log("[Turnstile] Iniciando servicio...");
+        
+        // Registrar callback global para Turnstile
         window.onTurnstileReady = () => {
-            console.log("[Turnstile] Turnstile API lista para usar");
-            this.renderCaptchas();
+            console.log("[Turnstile] API de Turnstile lista");
+            this.renderCaptcha();
         };
-
+        
+        // Cargar script si es necesario
+        this.loadScript();
+        
+        // Configurar validación cuando el DOM esté listo
         if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", () => this.setup());
+            document.addEventListener("DOMContentLoaded", () => this.setupForm());
         } else {
-            this.setup();
+            this.setupForm();
         }
     },
-
-    /**
-     * Configura el validador
-     */
-    setup: function() {
-        // Cargar el script de Turnstile si aún no está cargado
-        this.loadTurnstileScript();
-        
-        // Adjuntar el validador al formulario
-        this.attachValidator();
-        
-        // Esperar un tiempo para verificar si el CAPTCHA se renderizó
-        setTimeout(() => {
-            this.checkCaptchaRendering();
-        }, this.config.loadingDelay);
-    },
-
+    
     /**
      * Carga el script de Turnstile
      */
-    loadTurnstileScript: function() {
-        if (document.querySelector(`script[src*="turnstile/v0/api.js"]`)) {
-            console.log("[Turnstile] Script ya cargado.");
+    loadScript: function() {
+        if (document.querySelector('script[src*="turnstile/v0/api.js"]')) {
+            console.log("[Turnstile] Script ya cargado");
             return;
         }
-
+        
         console.log("[Turnstile] Cargando script...");
         const script = document.createElement("script");
-        script.src = `${this.config.scriptSrc}?onload=onTurnstileReady&render=explicit`;
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady&render=explicit";
         script.async = true;
         script.defer = true;
         document.head.appendChild(script);
     },
-
+    
     /**
-     * Renderiza manualmente los CAPTCHAs en la página
+     * Configura el formulario para validación
      */
-    renderCaptchas: function() {
-        if (!window.turnstile) {
-            console.error("[Turnstile] API de Turnstile no disponible");
+    setupForm: function() {
+        const form = document.querySelector("form.oe_signup_form");
+        if (!form || form.dataset.turnstileValidatorAttached === "true") {
             return;
         }
-
-        const containers = document.querySelectorAll(this.config.containerSelector);
-        if (containers.length === 0) {
-            console.warn("[Turnstile] No se encontraron contenedores de CAPTCHA");
-            return;
-        }
-
-        // Limpiar contenedores para evitar duplicados
-        containers.forEach((container, index) => {
-            // Mantener solo el primer contenedor, eliminar los demás
-            if (index > 0) {
-                container.remove();
-                return;
-            }
-
-            // Limpiar el contenido del primer contenedor
-            while (container.firstChild) {
-                container.removeChild(container.firstChild);
-            }
-
-            // Obtener el sitekey del atributo data-sitekey
-            const sitekey = container.getAttribute("data-sitekey");
-            if (!sitekey) {
-                console.error("[Turnstile] No se encontró el atributo data-sitekey");
-                return;
-            }
-
-            // Renderizar el captcha explícitamente
-            try {
-                console.log(`[Turnstile] Renderizando CAPTCHA con sitekey: ${sitekey}`);
-                window.turnstile.render(container, {
-                    sitekey: sitekey,
-                    callback: (token) => {
-                        console.log("[Turnstile] Token generado");
-                        const responseInput = document.querySelector(this.config.responseInputSelector);
-                        if (responseInput) {
-                            responseInput.value = token;
-                        }
-                    },
-                });
-            } catch (error) {
-                console.error("[Turnstile] Error al renderizar:", error);
-            }
-        });
-    },
-
-    /**
-     * Verifica si el CAPTCHA se ha renderizado correctamente
-     */
-    checkCaptchaRendering: function() {
-        const container = document.querySelector(this.config.containerSelector);
-        if (!container) {
-            console.warn("[Turnstile] No se encontró el contenedor del CAPTCHA.");
-            return;
-        }
-
-        const iframe = container.querySelector("iframe");
-        if (!iframe) {
-            console.warn("[Turnstile] CAPTCHA no renderizado. Intentando renderizar manualmente...");
-            this.renderCaptchas();
-        } else {
-            console.log("[Turnstile] CAPTCHA renderizado correctamente.");
-        }
-    },
-
-    /**
-     * Adjunta el validador al formulario
-     */
-    attachValidator: function() {
-        const form = document.querySelector(this.config.formSelector);
-        if (!form || form.dataset.turnstileValidatorAttached === "true") return;
-
-        form.addEventListener("submit", this.validateTurnstile.bind(this));
+        
+        // Adjuntar validador al formulario
+        form.addEventListener("submit", (e) => this.validateForm(e));
         form.dataset.turnstileValidatorAttached = "true";
-        console.log("[Turnstile] Validador adjuntado al formulario.");
+        console.log("[Turnstile] Validador adjuntado al formulario");
+        
+        // Verificar si necesitamos renderizar el captcha
+        setTimeout(() => {
+            const container = document.querySelector(".cf-turnstile");
+            if (container && !container.querySelector("iframe")) {
+                this.renderCaptcha();
+            }
+        }, 500);
     },
-
+    
     /**
-     * Valida la respuesta de Turnstile al enviar el formulario
+     * Renderiza el captcha explícitamente
      */
-    validateTurnstile: function(ev) {
-        const turnstileResponse = document.querySelector(this.config.responseInputSelector)?.value;
-        if (!turnstileResponse) {
-            ev.preventDefault();
+    renderCaptcha: function() {
+        if (!window.turnstile) {
+            console.log("[Turnstile] API de Turnstile no disponible aún");
+            return;
+        }
+        
+        const container = document.querySelector(".cf-turnstile");
+        if (!container) {
+            console.warn("[Turnstile] No se encontró el contenedor del captcha");
+            return;
+        }
+        
+        const sitekey = container.getAttribute("data-sitekey");
+        if (!sitekey) {
+            console.error("[Turnstile] No se encontró el sitekey");
+            return;
+        }
+        
+        // Limpiar contenedor existente
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
+        }
+        
+        // Renderizar captcha
+        try {
+            console.log("[Turnstile] Renderizando captcha con sitekey:", sitekey);
+            window.turnstile.render(container, {
+                sitekey: sitekey,
+                callback: (token) => {
+                    console.log("[Turnstile] Token generado");
+                    const input = document.querySelector('input[name="cf-turnstile-response"]');
+                    if (input) {
+                        input.value = token;
+                    }
+                }
+            });
+        } catch (error) {
+            console.error("[Turnstile] Error al renderizar:", error);
+        }
+    },
+    
+    /**
+     * Valida el formulario al enviar
+     */
+    validateForm: function(e) {
+        const response = document.querySelector('input[name="cf-turnstile-response"]')?.value;
+        if (!response) {
+            e.preventDefault();
             const captchaField = document.querySelector(".field-captcha");
             if (captchaField) {
                 let errorContainer = captchaField.querySelector(".alert");
@@ -168,25 +128,21 @@ const TurnstileValidator = {
                     captchaField.appendChild(errorContainer);
                 }
                 errorContainer.textContent = "Por favor, completa la verificación de seguridad.";
-            } else {
-                alert("Completa la verificación antes de continuar.");
             }
-            return false;
         }
-        return true;
     }
 };
 
-// Inicializar el validador después de cargar la página
-setTimeout(() => TurnstileValidator.init(), 500);
+// Inicializar el servicio
+setTimeout(() => TurnstileHandler.init(), 100);
 
 // Registrar el servicio en Odoo
-registry.category("services").add("turnstile_validator", {
+registry.category("services").add("turnstile_handler", {
     dependencies: [],
     start() {
-        console.log("[Turnstile] Servicio iniciado.");
-        return TurnstileValidator;
-    },
+        console.log("[Turnstile] Servicio registrado");
+        return TurnstileHandler;
+    }
 });
 
-export default TurnstileValidator;
+export default TurnstileHandler;
