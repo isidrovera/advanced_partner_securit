@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <data>
+    <data noupdate="1">
         <!-- Email template for verification code -->
         <record id="mail_template_user_signup_verification" model="mail.template">
             <field name="name">Auth Signup: Verification Code</field>
-            <field name="model_id" ref="base.model_res_users"/>
+            <field name="model">res.users</field>
             <field name="subject">Código de verificación para su registro</field>
-            <field name="email_from"><t t-out="user.company_id.email or user.email_formatted"/></field>
-            <field name="email_to"><t t-out="object.email or ''"/></field>
+            <field name="email_from">${object.company_id.email or object.email_formatted}</field>
+            <field name="email_to">${object.email or ''}</field>
             <field name="body_html" type="html">
                 <div style="margin: 0px; padding: 0px; font-size: 13px;">
                     <div style="padding: 20px; background-color: #F8F8F8;">
@@ -22,10 +22,10 @@
                                 Hemos recibido una solicitud de registro en nuestra plataforma. Para completar su registro, utilice el siguiente código de verificación:
                             </p>
                             <div style="text-align: center; margin: 30px 0px; font-size: 26px; font-weight: bold; padding: 15px; background-color: #f2f2f2; border-radius: 5px;">
-                                <t t-out="object.verification_code or 'XXXXX'"/>
+                                ${object.verification_code or 'XXXXX'}
                             </div>
                             <p style="padding: 0px; font-size: 15px;">
-                                Este código es válido por <t t-out="object.expiry_hours or '0.5'"/> horas desde el momento en que se envió este correo.
+                                Este código es válido por ${object.expiry_hours or '0.5'} horas desde el momento en que se envió este correo.
                             </p>
                             <p style="padding: 0px; font-size: 15px;">
                                 Si no ha solicitado este código, por favor ignore este mensaje.
@@ -40,7 +40,7 @@
                     </div>
                 </div>
             </field>            
-            <field name="auto_delete" eval="True"/>
+            <field name="auto_delete">True</field>
         </record>
     </data>
 </odoo>
