@@ -3,10 +3,7 @@ from odoo import http, _
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
 import requests
 import logging
-import werkzeug
-import json
-from odoo import http
-from odoo.http import Response, request
+from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 class TurnstileAuthSignup(AuthSignupHome):
@@ -40,7 +37,9 @@ class TurnstileAuthSignup(AuthSignupHome):
         _logger.info("Procesando registro con validación Turnstile")
         
         # Obtener la clave secreta
-        turnstile_secret = "0x4AAAAAAA-your_secret_key"
+        ICP = request.env['ir.config_parameter'].sudo()
+        turnstile_secret = ICP.get_param('website.turnstile_secret_key', 
+                                         default="0x4AAAAAAA-your_secret_key")
         turnstile_verify_url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
         
         # Obtener el token de la respuesta del captcha
@@ -97,24 +96,6 @@ class TurnstileAuthSignup(AuthSignupHome):
         # Continuar con el flujo original de registro si no hay errores
         response = super(TurnstileAuthSignup, self).web_auth_signup(*args, **kw)
         return self._add_csp_headers(response)
-
-    @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
-    def web_auth_signup_override(self, *args, **kw):
-        """
-        Sobrescribe la ruta de registro para asegurar que el captcha se valide
-        """
-        # Agregar encabezados CSP directamente en la respuesta
-        response = self.web_auth_signup(*args, **kw)
-        
-        # Si la respuesta es un objeto Response, agregar los encabezados
-        if hasattr(response, 'headers'):
-            csp = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; " + \
-                  "frame-src 'self' https://challenges.cloudflare.com; " + \
-                  "connect-src 'self' https://challenges.cloudflare.com;"
-                  
-            response.headers['Content-Security-Policy'] = csp
-        
-        return response
         
     @http.route()
     def web_login(self, *args, **kw):
@@ -164,36 +145,3 @@ class TurnstileAuthSignup(AuthSignupHome):
         except Exception as e:
             _logger.error(f"Error al verificar Turnstile: {str(e)}")
             return {'success': False, 'error': str(e)}
-            
-            
-
-
-class CSPController(http.Controller):
-    """
-    Controlador para modificar las políticas de seguridad de contenido (CSP) en rutas específicas
-    """
-    
-    @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
-    def signup_with_csp(self, *args, **kw):
-        """
-        Intercepta la solicitud de registro para inyectar los encabezados CSP necesarios
-        """
-        _logger.info("Interceptando ruta de registro para ajustar CSP")
-        
-        # Usar el controlador original directamente
-        auth_controller = AuthSignupHome()
-        response = auth_controller.web_auth_signup(*args, **kw)
-        
-        # Modificar los encabezados CSP en la respuesta
-        if hasattr(response, 'headers'):
-            csp_policy = (
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; "
-                "frame-src 'self' https://challenges.cloudflare.com; "
-                "connect-src 'self' https://challenges.cloudflare.com;"
-            )
-            
-            # Establecer o actualizar la política CSP
-            response.headers['Content-Security-Policy'] = csp_policy
-            _logger.info("CSP modificado para la página de registro")
-            
-        return response

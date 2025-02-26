@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+     <!-- Heredamos la plantilla providers de auth_oauth para corregir el error -->
+    <template id="providers_fix" inherit_id="auth_oauth.providers">
+        <xpath expr="//em[contains(@t-attf-class, 'my-#{len(providers)')]" position="attributes">
+            <attribute name="t-attf-class">d-block text-center text-muted small my-#{len(providers) if providers else 3}</attribute>
+        </xpath>
+    </template>
+    
      <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
             <!-- Cloudflare Turnstile -->
