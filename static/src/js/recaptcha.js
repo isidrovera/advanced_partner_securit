@@ -1,12 +1,13 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
 
-// Evitar inicialización múltiple
+// Evitar doble inicialización
 if (window._turnstileInitialized) {
     console.log("[Turnstile] Ya inicializado.");
 } else {
     window._turnstileInitialized = true;
 
+    // Función para eliminar captchas duplicados
     function removeDuplicateCaptchas() {
         const containers = document.querySelectorAll(".cf-turnstile");
         if (containers.length > 1) {
@@ -37,8 +38,12 @@ const TurnstileValidator = {
     },
 
     setup: function () {
-        // Eliminar duplicados antes de validar
-        removeDuplicateCaptchas();
+        // Verificar si la función está definida
+        if (typeof removeDuplicateCaptchas === "function") {
+            removeDuplicateCaptchas();
+        } else {
+            console.error("[Turnstile] La función removeDuplicateCaptchas no está definida.");
+        }
 
         // Verificar si el CAPTCHA ya está en el formulario
         const captchaContainer = document.querySelector(".cf-turnstile");
