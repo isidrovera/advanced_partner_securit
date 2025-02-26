@@ -9,18 +9,38 @@ from odoo import http
 from odoo.http import Response, request
 
 _logger = logging.getLogger(__name__)
-
 class TurnstileAuthSignup(AuthSignupHome):
+    """
+    Sobrescribe el controlador de registro original para añadir CSP y validación de Turnstile
+    """
+    
+    def _add_csp_headers(self, response):
+        """Agrega encabezados CSP a la respuesta si es necesario"""
+        if hasattr(response, 'headers'):
+            csp = "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; " + \
+                  "frame-src 'self' https://challenges.cloudflare.com; " + \
+                  "connect-src 'self' https://challenges.cloudflare.com;"
+            response.headers['Content-Security-Policy'] = csp
+            _logger.info("CSP agregado a la respuesta")
+        return response
+    
+    def get_auth_signup_qcontext(self):
+        """Sobrescribe para asegurar que providers siempre esté definido"""
+        qcontext = super(TurnstileAuthSignup, self).get_auth_signup_qcontext()
+        
+        # Asegurarse de que providers esté definido
+        if 'providers' not in qcontext or qcontext['providers'] is None:
+            qcontext['providers'] = []
+        
+        return qcontext
     
     @http.route()
     def web_auth_signup(self, *args, **kw):
-        """Sobrescribe el método de registro para validar Turnstile"""
+        """Sobrescribe el método de registro para validar Turnstile y ajustar CSP"""
         _logger.info("Procesando registro con validación Turnstile")
         
-        # Obtener la clave secreta de los parámetros del sistema
-        ICP = request.env['ir.config_parameter'].sudo()
-        turnstile_secret = ICP.get_param('website.turnstile_secret_key', 
-                                        default="0x4AAAAAAA-your_secret_key")
+        # Obtener la clave secreta
+        turnstile_secret = "0x4AAAAAAA-your_secret_key"
         turnstile_verify_url = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
         
         # Obtener el token de la respuesta del captcha
@@ -28,7 +48,7 @@ class TurnstileAuthSignup(AuthSignupHome):
         
         # Verificar si se está enviando un formulario (POST)
         if request.httprequest.method == 'POST':
-            # Inicializar el diccionario de errores de forma adecuada para que funcione con el XML
+            # Inicializar el diccionario de errores
             qcontext = self.get_auth_signup_qcontext()
             error = {}
             
@@ -71,10 +91,12 @@ class TurnstileAuthSignup(AuthSignupHome):
             # Si hay errores, mostrarlos y no continuar con el registro
             if error:
                 qcontext.update({'error': error})
-                return request.render('auth_signup.signup', qcontext)
+                response = request.render('auth_signup.signup', qcontext)
+                return self._add_csp_headers(response)
         
         # Continuar con el flujo original de registro si no hay errores
-        return super().web_auth_signup(*args, **kw)
+        response = super(TurnstileAuthSignup, self).web_auth_signup(*args, **kw)
+        return self._add_csp_headers(response)
 
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
     def web_auth_signup_override(self, *args, **kw):
