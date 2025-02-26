@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
+from odoo.http import request
 import re
 import logging
 import datetime
@@ -18,10 +19,10 @@ class CustomResPartner(models.Model):
     
     @api.model
     def create(self, vals):
-        # Obtener la IP del usuario
-        request_obj = self.env['ir.http'].get_request()
-        if request_obj:
-            vals['registration_ip'] = request_obj.httprequest.remote_addr
+        # Obtener la IP del usuario directamente del objeto request
+        # CAMBIO AQUÍ: Usar el objeto request directamente en lugar de ir.http.get_request()
+        if hasattr(request, 'httprequest'):
+            vals['registration_ip'] = request.httprequest.remote_addr
             vals['registration_date'] = fields.Datetime.now()
         
         # Verificar si ya existe un usuario con la misma IP registrado hoy
@@ -66,7 +67,6 @@ class CustomResPartner(models.Model):
             'getnada.com', 'spamex.com', 'mytrashmail.com'
         ]
         return domain in disposable_domains
-
 class ResUsers(models.Model):
     _inherit = 'res.users'
     
