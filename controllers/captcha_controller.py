@@ -121,7 +121,7 @@ class SecurityAuthSignup(AuthSignupHome):
                     
                     # Renderizar página de verificación
                     _logger.info(f"Redirigiendo a página de verificación para: {email}")
-                    return request.render('auth_signup_security.signup_verification', qcontext)
+                    return request.render('advanced_partner_securit.signup_verification', qcontext)
                     
                 except UserError as e:
                     _logger.warning(f"Error en validación de registro para {email}: {str(e)}")
@@ -160,7 +160,7 @@ class SecurityAuthSignup(AuthSignupHome):
                     if user_code != stored_code:
                         _logger.warning(f"Código incorrecto para {verification_email}: esperado {stored_code}, recibido {user_code}")
                         qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
-                        return request.render('auth_signup_security.signup_verification', qcontext)
+                        return request.render('advanced_partner_securit.signup_verification', qcontext)
                     
                     # Código correcto, proceder al registro final
                     _logger.info(f"Código verificado correctamente para {verification_email}")
@@ -172,11 +172,11 @@ class SecurityAuthSignup(AuthSignupHome):
                     
                     # Renderizar formulario final
                     _logger.info(f"Redirigiendo a formulario final para: {verification_email}")
-                    return request.render('auth_signup_security.signup_final', qcontext)
+                    return request.render('advanced_partner_securit.signup_final', qcontext)
                 except Exception as e:
                     _logger.error(f"Error al procesar verificación: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error al verificar el código. Por favor, inténtelo de nuevo.")
-                    return request.render('auth_signup_security.signup_verification', qcontext)
+                    return request.render('advanced_partner_securit.signup_verification', qcontext)
                 
             # 3. Tercer paso: registro final
             elif registration_state == 'submit':
@@ -187,13 +187,13 @@ class SecurityAuthSignup(AuthSignupHome):
                 if not kw.get('accept_terms'):
                     _logger.warning(f"Términos y condiciones no aceptados para: {verification_email}")
                     qcontext['error'] = _("Debes aceptar los términos y condiciones para registrarte.")
-                    return request.render('auth_signup_security.signup_final', qcontext)
+                    return request.render('advanced_partner_securit.signup_final', qcontext)
                 
                 # Validar que la contraseña y la confirmación coincidan
                 if kw.get('password') != kw.get('confirm_password'):
                     _logger.warning(f"Las contraseñas no coinciden para: {verification_email}")
                     qcontext['error'] = _("Las contraseñas no coinciden. Por favor, inténtelo de nuevo.")
-                    return request.render('auth_signup_security.signup_final', qcontext)
+                    return request.render('advanced_partner_securit.signup_final', qcontext)
                 
                 # Añadir email verificado a los parámetros
                 kw['login'] = verification_email
@@ -216,7 +216,7 @@ class SecurityAuthSignup(AuthSignupHome):
                 except Exception as e:
                     _logger.error(f"Error en registro final para {verification_email}: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error en el proceso de registro. Por favor, inténtelo de nuevo más tarde.")
-                    return request.render('auth_signup_security.signup_final', qcontext)
+                    return request.render('advanced_partner_securit.signup_final', qcontext)
         
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
         _logger.info(f"Mostrando formulario inicial de registro para IP: {request.httprequest.remote_addr}")
