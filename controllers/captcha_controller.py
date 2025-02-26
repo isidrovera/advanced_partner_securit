@@ -220,19 +220,17 @@ class SecurityAuthSignup(AuthSignupHome):
                         # Hacer commit de la transacción actual
                         request.env.cr.commit()
                         
-                        # Obtener el nombre de la base de datos actual
-                        db_name = request.session.db
+                        # Intentar autenticar automáticamente (versión corregida)
+                        try:
+                            uid = request.session.authenticate(verification_email, kw.get('password'))
+                            if uid:
+                                return request.redirect('/web')
+                        except Exception as e:
+                            _logger.warning(f"No se pudo autenticar automáticamente: {e}")
                         
-                        # Autenticar al usuario correctamente
-                        uid = request.session.authenticate(db_name, verification_email, kw.get('password'))
+                        # Si la autenticación automática falla, redirigir al login
+                        return request.redirect('/web/login?message=Su cuenta ha sido creada correctamente. Por favor, inicie sesión.')
                         
-                        if uid:
-                            # Si la autenticación fue exitosa, redirigir al home
-                            return request.redirect('/web')
-                        else:
-                            # Si la autenticación falló pero el usuario se creó, ir a login
-                            qcontext['success'] = _("El registro se ha completado correctamente. Por favor, inicie sesión.")
-                            return request.redirect('/web/login')
                     except Exception as e:
                         _logger.error(f"Error en do_signup: {str(e)}", exc_info=True)
                         qcontext['error'] = str(e)
