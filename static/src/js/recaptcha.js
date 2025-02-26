@@ -2,28 +2,43 @@
 import { registry } from "@web/core/registry";
 
 // Evitar doble inicialización
-if (window._turnstileInitialized) {
-    console.log("[Turnstile] Ya inicializado.");
-} else {
+if (!window._turnstileInitialized) {
     window._turnstileInitialized = true;
 
-    // Función para eliminar captchas duplicados
+    // Definir la función dentro del mismo alcance para evitar errores
     function removeDuplicateCaptchas() {
         const containers = document.querySelectorAll(".cf-turnstile");
         if (containers.length > 1) {
-            console.log(`[Turnstile] Eliminando ${containers.length - 1} captchas duplicados.`);
+            console.log(`[Turnstile] Eliminando ${containers.length - 1} CAPTCHA(s) duplicado(s).`);
             for (let i = 1; i < containers.length; i++) {
                 containers[i].remove();
             }
         }
     }
 
-    // Observar cambios en el DOM para evitar duplicaciones
-    const observer = new MutationObserver(() => {
-        removeDuplicateCaptchas();
-    });
-
+    // Observar cambios en el DOM para evitar CAPTCHA duplicado
+    const observer = new MutationObserver(() => removeDuplicateCaptchas());
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Cargar el script de Turnstile si no está presente
+    function loadTurnstileScript() {
+        if (document.querySelector('script[src*="turnstile/v0/api.js"]')) {
+            console.log("[Turnstile] Script ya cargado.");
+            return;
+        }
+
+        console.log("[Turnstile] Cargando script...");
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            console.log("[Turnstile] Script cargado correctamente.");
+        };
+        document.head.appendChild(script);
+    }
+
+    loadTurnstileScript();
 }
 
 const TurnstileValidator = {
@@ -38,7 +53,7 @@ const TurnstileValidator = {
     },
 
     setup: function () {
-        // Verificar si la función está definida
+        // Asegurar que la función removeDuplicateCaptchas esté definida antes de llamarla
         if (typeof removeDuplicateCaptchas === "function") {
             removeDuplicateCaptchas();
         } else {
@@ -50,6 +65,11 @@ const TurnstileValidator = {
         if (!captchaContainer) {
             console.warn("[Turnstile] No se encontró el contenedor del CAPTCHA.");
             return;
+        }
+
+        // Revisar si el CAPTCHA ya se ha cargado
+        if (!captchaContainer.querySelector("iframe")) {
+            console.warn("[Turnstile] No se ha renderizado el CAPTCHA. Verifica el sitio clave.");
         }
 
         this.attachValidator();
