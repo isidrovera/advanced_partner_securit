@@ -4,8 +4,7 @@
         <!-- Parámetro para el nivel de validación de correo -->
         <record id="param_email_validation_level" model="ir.config_parameter">
             <field name="key">auth_signup_security.email_validation_level</field>
-            <field name="value">2</field>
-            <field name="description">Nivel de validación de correo electrónico (1: básico, 2: intermedio, 3: estricto)</field>
+            <field name="value">2</field>           
         </record>
         
         <!-- Registro inicial para la configuración de reCAPTCHA (deshabilitado por defecto) -->
