@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- ==================== VISTAS ORIGINALES PARA IP REGISTRATION ==================== -->
+    <!-- ==================== VISTAS PARA IP REGISTRATION ==================== -->
     <!-- Vista de formulario actualizada para IpRegistration -->
     <record id="view_ip_registration_form" model="ir.ui.view">
         <field name="name">auth_signup_security.ip_registration.form</field>
@@ -185,7 +185,23 @@
         </field>
     </record>
 
-    <!-- ==================== ESTRUCTURA DE MENÚS ORIGINAL CON ADICIONES ==================== -->
+    <!-- Acción para configurar dominios permitidos (DEBE IR ANTES DEL MENÚ QUE LA REFERENCIA) -->
+    <record id="action_allowed_domains_config" model="ir.actions.act_window">
+        <field name="name">Dominios Permitidos</field>
+        <field name="res_model">ir.config_parameter</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="domain">[('key', '=', 'auth_signup_security.allowed_email_domains')]</field>
+        <field name="context">{'default_key': 'auth_signup_security.allowed_email_domains', 'default_value': 'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com'}</field>
+        <field name="help" type="html">
+            <p>
+                Configure los dominios de correo electrónico permitidos para registros.
+                Separe los dominios con comas. Por ejemplo: gmail.com,hotmail.com,outlook.com
+            </p>
+        </field>
+    </record>
+
+    <!-- ==================== ESTRUCTURA DE MENÚS ==================== -->
     <!-- Menú raíz con icono para la aplicación -->
     <menuitem id="menu_security_root"
               name="Seguridad de Acceso"
@@ -222,26 +238,11 @@
               sequence="50"
               groups="base.group_system"/>
               
-    <!-- Menú para gestionar dominios permitidos -->
+    <!-- Menú para gestionar dominios permitidos (DEBE IR DESPUÉS DE QUE LA ACCIÓN ESTÉ DEFINIDA) -->
     <menuitem id="menu_allowed_domains"
               name="Dominios Permitidos"
               parent="menu_security_settings"
               action="action_allowed_domains_config"
               sequence="10"
               groups="base.group_system"/>
-
-    <record id="action_allowed_domains_config" model="ir.actions.act_window">
-        <field name="name">Dominios Permitidos</field>
-        <field name="res_model">ir.config_parameter</field>
-        <field name="view_mode">form</field>
-        <field name="target">current</field>
-        <field name="domain">[('key', '=', 'auth_signup_security.allowed_email_domains')]</field>
-        <field name="context">{'default_key': 'auth_signup_security.allowed_email_domains', 'default_value': 'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com'}</field>
-        <field name="help" type="html">
-            <p>
-                Configure los dominios de correo electrónico permitidos para registros.
-                Separe los dominios con comas. Por ejemplo: gmail.com,hotmail.com,outlook.com
-            </p>
-        </field>
-    </record>
 </odoo>
