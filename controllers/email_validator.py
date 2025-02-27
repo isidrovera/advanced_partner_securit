@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#controllers\email_validator.py
+#
 import re
 import logging
 

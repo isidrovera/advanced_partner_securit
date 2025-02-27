@@ -8,6 +8,8 @@ from odoo.exceptions import UserError
 from datetime import datetime, timedelta
 import random
 import string
+import requests
+import json
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -123,6 +125,14 @@ class SecurityAuthSignup(AuthSignupHome):
                 email = kw.get('email', '').strip().lower()
                 _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {self.get_client_ip()}")
                 
+                # Validar reCAPTCHA primero
+                recaptcha_response = kw.get('g-recaptcha-response')
+                recaptcha_enabled = kw.get('recaptcha_enabled') == 'True'
+                
+                if recaptcha_enabled and not self._validate_recaptcha(recaptcha_response):
+                    _logger.warning(f"Validación de reCAPTCHA fallida para correo: {email}, IP: {self.get_client_ip()}")
+                    qcontext['error'] = _("Por favor, complete la verificación de reCAPTCHA.")
+                    return request.render('auth_signup.signup', qcontext)
                 try:
                     # Validar que el correo no esté bloqueado
                     _logger.debug(f"Validando si el correo {email} está bloqueado")
@@ -485,6 +495,64 @@ class SecurityAuthSignup(AuthSignupHome):
         self._validate_email_advanced(email)
         
         _logger.info(f"Dominio válido: {domain}")
+    def _validate_recaptcha(self, response):
+        """
+        Valida la respuesta del reCAPTCHA
+        
+        Args:
+            response (str): La respuesta del reCAPTCHA del cliente
+            
+        Returns:
+            bool: True si la validación es exitosa, False si falla
+        """
+        if not response:
+            _logger.warning("No hay respuesta de reCAPTCHA para validar")
+            return False
+            
+        # Obtener la configuración
+        RecaptchaConfig = request.env['auth_signup_security.recaptcha_config'].sudo()
+        config = RecaptchaConfig.get_config()
+        
+        if not config or not config.is_enabled:
+            _logger.info("reCAPTCHA no está configurado o está deshabilitado")
+            return True  # Si no está habilitado, considerarlo válido
+        
+        try:
+            # Obtener la IP del cliente
+            ip = self.get_client_ip()
+            
+            # Preparar datos para verificación
+            data = {
+                'secret': config.secret_key,
+                'response': response,
+                'remoteip': ip
+            }
+            
+            # Enviar solicitud a Google
+            resp = requests.post(
+                'https://www.google.com/recaptcha/api/siteverify',
+                data=data,
+                timeout=5
+            )
+            
+            # Procesar respuesta
+            if resp.status_code == 200:
+                result = resp.json()
+                
+                if result.get('success', False):
+                    _logger.info(f"Validación reCAPTCHA exitosa para IP: {ip}")
+                    return True
+                else:
+                    error_codes = result.get('error-codes', [])
+                    _logger.warning(f"Validación reCAPTCHA fallida para IP: {ip}, errores: {error_codes}")
+                    return False
+            else:
+                _logger.error(f"Error al contactar servicio reCAPTCHA: {resp.status_code}")
+                return False
+                
+        except Exception as e:
+            _logger.error(f"Error en validación reCAPTCHA: {str(e)}")
+            return False
     def _validate_email_advanced(self, email):
         """
         Realiza validación avanzada del correo para detectar patrones sospechosos

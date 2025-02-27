@@ -22,6 +22,9 @@
         'views/signup_verification.xml',
         'data/mail_template_data.xml',
         'data/ir_cron.xml',
+        'views/recaptcha_views.xml',
+        'views/recaptcha_templates.xml',        
+        'data/recaptcha_data.xml',
     ],
     'assets': {
         'web.assets_frontend': [

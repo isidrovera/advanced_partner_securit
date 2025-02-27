@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vista de lista para la configuración de reCAPTCHA -->
+    <record id="view_recaptcha_config_list" model="ir.ui.view">
+        <field name="name">recaptcha.config.list</field>
+        <field name="model">auth_signup_security.recaptcha_config</field>
+        <field name="arch" type="xml">
+            <list string="Configuraciones de reCAPTCHA">
+                <field name="site_key"/>
+                <field name="is_enabled"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vista del formulario para la configuración de reCAPTCHA -->
+    <record id="view_recaptcha_config_form" model="ir.ui.view">
+        <field name="name">recaptcha.config.form</field>
+        <field name="model">auth_signup_security.recaptcha_config</field>
+        <field name="arch" type="xml">
+            <form string="Configuración de reCAPTCHA">
+                <sheet>
+                    <group>
+                        <field name="is_enabled"/>
+                        <field name="site_key"/>
+                        <field name="secret_key" password="True"/>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        <p>Para configurar reCAPTCHA:</p>
+                        <ol>
+                            <li>Regístrate en <a href="https://www.google.com/recaptcha/admin" target="_blank">https://www.google.com/recaptcha/admin</a></li>
+                            <li>Selecciona reCAPTCHA v2 "Checkbox"</li>
+                            <li>Agrega los dominios de tu sitio</li>
+                            <li>Copia las claves generadas a los campos de arriba</li>
+                        </ol>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción para abrir la configuración de reCAPTCHA -->
+    <record id="action_recaptcha_config" model="ir.actions.act_window">
+        <field name="name">Configuración de reCAPTCHA</field>
+        <field name="res_model">auth_signup_security.recaptcha_config</field>
+        <field name="view_mode">list,form</field>
+        <field name="target">current</field>
+    </record>
+
+    <!-- Menú para la configuración de reCAPTCHA -->
+    <menuitem id="menu_recaptcha_config" 
+        name="reCAPTCHA" 
+        parent="menu_security_settings" 
+        action="action_recaptcha_config" 
+        sequence="20" 
+        groups="base.group_system"/>
+</odoo>

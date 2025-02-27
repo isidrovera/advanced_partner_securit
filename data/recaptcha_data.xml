@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Parámetro para el nivel de validación de correo -->
+        <record id="param_email_validation_level" model="ir.config_parameter">
+            <field name="key">auth_signup_security.email_validation_level</field>
+            <field name="value">2</field>
+            <field name="description">Nivel de validación de correo electrónico (1: básico, 2: intermedio, 3: estricto)</field>
+        </record>
+        
+        <!-- Registro inicial para la configuración de reCAPTCHA (deshabilitado por defecto) -->
+        <record id="default_recaptcha_config" model="auth_signup_security.recaptcha_config">
+            <field name="site_key">6LddruQqAAAAAMrBi6YHFfW9XmkgB9no-uM0to1j</field>
+            <field name="secret_key">6LddruQqAAAAANUeMUC9LRBbnEnY19sobNBbgfIq</field>
+            <field name="is_enabled">True</field>
+        </record>
+    </data>
+</odoo>
