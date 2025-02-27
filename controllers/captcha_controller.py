@@ -13,10 +13,11 @@ _logger = logging.getLogger(__name__)
 class SecurityAuthSignup(AuthSignupHome):
     """
     Sobrescribe el controlador de registro original para añadir controles de seguridad avanzados:
-    1. Restricción por IP: máximo un usuario por día
+    1. Restricción por IP: máximo tres usuarios por día
     2. Validación de dominios de correo confiables
     3. Verificación por código enviado al correo
-    4. NUEVO: Limitar envío de códigos de verificación a uno por IP
+    4. Limitar envío de códigos de verificación a uno por IP por día
+    5. Bloqueo de correos que solicitan códigos desde diferentes IPs
     """
     def get_client_ip(self):
         """
@@ -53,6 +54,7 @@ class SecurityAuthSignup(AuthSignupHome):
         
         _logger.debug(f"IP detectada: {client_ip}, cabeceras: {request_obj.headers}")
         return client_ip
+    
     def get_auth_signup_qcontext(self):
         """Sobrescribe para asegurar que providers esté definido y agregar datos de seguridad"""
         qcontext = super(SecurityAuthSignup, self).get_auth_signup_qcontext()
@@ -120,15 +122,25 @@ class SecurityAuthSignup(AuthSignupHome):
                 _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {self.get_client_ip()}")
                 
                 try:
+                    # Validar que el correo no esté bloqueado
+                    _logger.debug(f"Validando si el correo {email} está bloqueado")
+                    self._validate_email_not_blocked(email)
+                    _logger.info(f"Correo {email} no está bloqueado")
+                    
                     # Validar límite de IP para registros completos
                     _logger.debug(f"Validando límite de IP para: {self.get_client_ip()}")
                     self._validate_ip_limit()
                     _logger.info(f"Validación de IP exitosa para: {self.get_client_ip()}")
                     
-                    # NUEVO: Validar límite de envío de códigos por IP
+                    # Validar límite de envío de códigos por IP
                     _logger.debug(f"Validando límite de envío de códigos para IP: {self.get_client_ip()}")
                     self._validate_verification_code_limit()
                     _logger.info(f"Validación de límite de envío de códigos exitosa para IP: {self.get_client_ip()}")
+                    
+                    # Validar que el correo no haya solicitado códigos desde múltiples IPs
+                    _logger.debug(f"Validando solicitudes desde múltiples IPs para: {email}")
+                    self._validate_multiple_ip_requests(email)
+                    _logger.info(f"Validación de múltiples IPs exitosa para: {email}")
                     
                     # Validar dominio de correo
                     _logger.debug(f"Validando dominio de correo para: {email}")
@@ -155,7 +167,7 @@ class SecurityAuthSignup(AuthSignupHome):
                     self._send_verification_email(email, verification_code)
                     _logger.info(f"Código de verificación enviado a {email}, expira en: {verification_expiry}")
                     
-                    # NUEVO: Registrar el envío de código en la tabla de registros de IP
+                    # Registrar el envío de código en la tabla de registros de IP
                     self._register_code_sent(email)
                     
                     # Actualizar contexto
@@ -203,6 +215,10 @@ class SecurityAuthSignup(AuthSignupHome):
                     
                     if user_code != stored_code:
                         _logger.warning(f"Código incorrecto para {verification_email}: esperado {stored_code}, recibido {user_code}")
+                        
+                        # Registrar intento fallido
+                        self._register_failed_verification_attempt(verification_email)
+                        
                         qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
                         return request.render('advanced_partner_securit.signup_verification', qcontext)
                     
@@ -221,8 +237,7 @@ class SecurityAuthSignup(AuthSignupHome):
                     _logger.error(f"Error al procesar verificación: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error al verificar el código. Por favor, inténtelo de nuevo.")
                     return request.render('advanced_partner_securit.signup_verification', qcontext)
-                
-            # 3. Tercer paso: registro final
+                # 3. Tercer paso: registro final
             elif registration_state == 'submit':
                 verification_email = request.session.get('verification_email', '').strip()
                 _logger.info(f"Procesando registro final para: {verification_email}")
@@ -314,7 +329,7 @@ class SecurityAuthSignup(AuthSignupHome):
             raise UserError(_("Por razones de seguridad, solo se permiten tres registros por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
 
     def _validate_verification_code_limit(self):
-        """NUEVO: Valida que una IP no solicite más de un código de verificación por día"""
+        """Valida que una IP no solicite más de un código de verificación por día"""
         ip = self.get_client_ip()
         today = fields.Date.today()
         yesterday = today - timedelta(days=1)
@@ -335,6 +350,113 @@ class SecurityAuthSignup(AuthSignupHome):
             req_emails = ', '.join([r.email for r in code_requests])
             _logger.warning(f"Intento de solicitud múltiple de códigos bloqueado para IP: {ip}, solicitudes previas: {len(code_requests)}, correos: {req_emails}")
             raise UserError(_("Por razones de seguridad, solo se permite solicitar un código de verificación por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
+    
+    def _validate_multiple_ip_requests(self, email):
+        """
+        Valida que un correo no esté solicitando códigos desde diferentes IPs.
+        Si se detecta que el correo ha solicitado códigos desde otra IP diferente a la actual,
+        se bloquea automáticamente.
+        """
+        if not email:
+            return
+            
+        current_ip = self.get_client_ip()
+        today = fields.Date.today()
+        three_days_ago = today - timedelta(days=3)  # Verificar en los últimos 3 días
+        
+        _logger.debug(f"Validando solicitudes desde múltiples IPs para correo: {email}")
+        
+        # Buscar todas las solicitudes de código para este correo en los últimos 3 días
+        IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
+        email_requests = IpRegistration.search([
+            ('email', '=', email),
+            ('create_date', '>=', three_days_ago),
+            ('state', '=', 'code_sent')
+        ])
+        
+        # Si este correo ya ha solicitado códigos, verificar las IPs
+        if email_requests:
+            ips_used = set([r.ip_address for r in email_requests])
+            
+            _logger.info(f"Correo {email} ha solicitado códigos desde las siguientes IPs: {', '.join(ips_used)}")
+            
+            # Si ya existe una solicitud desde una IP diferente a la actual
+            if ips_used and current_ip not in ips_used:
+                _logger.warning(f"Correo {email} está solicitando código desde una nueva IP: {current_ip}, IPs anteriores: {', '.join(ips_used)}")
+                self._block_email(email, "Solicitud de códigos desde múltiples IPs")
+                raise UserError(_("Por razones de seguridad, este correo ha sido bloqueado por solicitar códigos desde diferentes direcciones IP. Por favor, utilice otro correo o contacte al soporte."))
+    
+    def _validate_email_not_blocked(self, email):
+        """Valida que el correo no esté en la lista de correos bloqueados"""
+        if not email:
+            return
+            
+        _logger.debug(f"Verificando si el correo {email} está bloqueado")
+        BlockedEmail = request.env['auth_signup_security.blocked_email'].sudo()
+        blocked = BlockedEmail.search([('email', '=', email)], limit=1)
+        
+        if blocked:
+            _logger.warning(f"Correo bloqueado: {email}, fecha de bloqueo: {blocked.blocked_date}, motivo: {blocked.reason}")
+            raise UserError(_("Este correo electrónico ha sido bloqueado por motivos de seguridad. Por favor, utilice otro correo o contacte al soporte."))
+    
+    def _register_failed_verification_attempt(self, email):
+        """Registra un intento fallido de verificación y bloquea el correo si hay demasiados intentos"""
+        if not email:
+            return
+            
+        _logger.debug(f"Registrando intento fallido de verificación para correo: {email}")
+        
+        # Obtener intentos fallidos previos desde la sesión
+        failed_attempts = request.session.get('failed_verification_attempts', 0) + 1
+        request.session['failed_verification_attempts'] = failed_attempts
+        
+        max_attempts = 5  # Máximo 5 intentos fallidos
+        
+        _logger.info(f"Correo {email} ha fallado {failed_attempts} intentos de verificación")
+        
+        if failed_attempts >= max_attempts:
+            # Bloquear el correo
+            _logger.warning(f"Correo {email} bloqueado por demasiados intentos fallidos de verificación: {failed_attempts}")
+            self._block_email(email, "Exceso de intentos fallidos de verificación")
+            
+            # Limpiar la sesión
+            request.session.pop('verification_code', None)
+            request.session.pop('verification_email', None)
+            request.session.pop('verification_expiry', None)
+            request.session.pop('registration_state', None)
+            request.session.pop('failed_verification_attempts', None)
+            
+            raise UserError(_("Por razones de seguridad, este correo ha sido bloqueado por demasiados intentos fallidos de verificación. Por favor, utilice otro correo o contacte al soporte."))
+    
+    def _block_email(self, email, reason="Motivos de seguridad"):
+        """Bloquea un correo electrónico"""
+        if not email:
+            return
+            
+        _logger.debug(f"Bloqueando correo: {email}, motivo: {reason}")
+        
+        try:
+            # Registrar el correo en la tabla de correos bloqueados
+            BlockedEmail = request.env['auth_signup_security.blocked_email'].sudo()
+            
+            # Verificar si ya existe
+            existing = BlockedEmail.search([('email', '=', email)], limit=1)
+            if existing:
+                _logger.info(f"El correo {email} ya estaba bloqueado")
+                return existing
+            
+            # Crear nuevo registro
+            blocked = BlockedEmail.create({
+                'email': email,
+                'reason': reason,
+                'is_permanent': False  # Por defecto, bloqueo temporal
+            })
+            
+            _logger.info(f"Correo {email} bloqueado exitosamente, ID: {blocked.id}")
+            return blocked
+        except Exception as e:
+            _logger.error(f"Error al bloquear correo {email}: {str(e)}", exc_info=True)
+            # No lanzar excepción para que el flujo principal continúe
     
     def _validate_email_domain(self, email):
         """Valida que el dominio de correo sea confiable"""
@@ -397,7 +519,7 @@ class SecurityAuthSignup(AuthSignupHome):
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
 
     def _register_code_sent(self, email):
-        """NUEVO: Registra el envío de un código de verificación"""
+        """Registra el envío de un código de verificación"""
         ip = self.get_client_ip()
         
         _logger.debug(f"Registrando envío de código para IP: {ip}, correo: {email}")
