@@ -307,7 +307,7 @@ class SecurityAuthSignup(AuthSignupHome):
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
         _logger.info(f"Mostrando formulario inicial de registro para IP: {self.get_client_ip()}")
         request.session['registration_state'] = 'pre'
-        return request.render('auth_signup.signup', qcontext))
+        return request.render('auth_signup.signup', qcontext)
     
     def _validate_ip_limit(self):
         """Valida que una IP no haya creado más de tres usuarios por día"""
