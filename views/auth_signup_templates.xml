@@ -8,22 +8,36 @@
     </template>
     
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
+        
+        <!-- Ajustamos el contenedor principal (si existe) -->
+        <xpath expr="//div[contains(@class,'oe_signup_container')]" position="attributes">
+            <!-- Añadimos clases de Bootstrap más amplias, o un estilo inline -->
+            <attribute name="class" add=" col-12 col-md-10 col-lg-8 mx-auto " />
+            <!-- O usar style directo (no recomendado en producción pero válido para ejemplo) -->
+            <!-- <attribute name="style">max-width: 800px; margin:auto;</attribute> -->
+        </xpath>
+        
+        <!-- Ajustamos el formulario -->
+        <xpath expr="//form[hasclass('oe_signup_form')]" position="attributes">
+            <!-- Añadir un estilo inline o clases personalizadas -->
+            <attribute name="style">max-width: 600px; margin: auto;</attribute>
+        </xpath>
+
+        <!-- Dejamos la parte del reCAPTCHA tal cual la tenías -->
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
-            
-            <!-- Captcha Google reCAPTCHA -->
             <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled">
                 <div class="mb-3 field-captcha">
                     <label class="form-label">Verificación de Seguridad</label>
-                    <div class="g-recaptcha" t-att-data-sitekey="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().site_key"></div>
-                    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response"/>
+                    <div class="g-recaptcha"
+                         t-att-data-sitekey="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().site_key">
+                    </div>
+                    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response" />
                 </div>
             </t>
 
-            <!-- Agregar el token CSRF -->
+            <!-- Token CSRF, JS de reCAPTCHA, etc... -->
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-
-            <!-- Validar en frontend antes de enviar -->
-            <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
+            <script src="https://www.google.com/recaptcha/api.js" async defer></script>
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
                     let form = document.querySelector("form.oe_signup_form");
