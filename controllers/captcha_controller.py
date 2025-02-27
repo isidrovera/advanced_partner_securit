@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+#controllers\captcha_controller.py
 from odoo import http, _, fields
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
+from .email_validator import EmailValidator
 from odoo.http import request
 from odoo.exceptions import UserError
 from datetime import datetime, timedelta
@@ -459,7 +461,7 @@ class SecurityAuthSignup(AuthSignupHome):
             # No lanzar excepción para que el flujo principal continúe
     
     def _validate_email_domain(self, email):
-        """Valida que el dominio de correo sea confiable"""
+        """Valida que el dominio de correo sea confiable y realiza validación adicional"""
         if not email or '@' not in email:
             _logger.warning(f"Formato de correo inválido: {email}")
             raise UserError(_("Por favor, proporcione una dirección de correo electrónico válida."))
@@ -470,7 +472,7 @@ class SecurityAuthSignup(AuthSignupHome):
         # Obtener dominios permitidos de la configuración
         ICP = request.env['ir.config_parameter'].sudo()
         allowed_domains_str = ICP.get_param('auth_signup_security.allowed_email_domains', 
-                                           'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com')
+                                        'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com')
         allowed_domains = [d.strip().lower() for d in allowed_domains_str.split(',')]
         
         _logger.debug(f"Dominios permitidos: {allowed_domains}")
@@ -479,7 +481,42 @@ class SecurityAuthSignup(AuthSignupHome):
             _logger.warning(f"Dominio no permitido: {domain}, dominios permitidos: {allowed_domains_str}")
             raise UserError(_("Por razones de seguridad, solo se aceptan correos de dominios confiables. Los dominios permitidos son: %s") % allowed_domains_str)
         
+        # AGREGAR ESTA LÍNEA - Realizar validación avanzada del correo
+        self._validate_email_advanced(email)
+        
         _logger.info(f"Dominio válido: {domain}")
+    def _validate_email_advanced(self, email):
+        """
+        Realiza validación avanzada del correo para detectar patrones sospechosos
+        """
+        if not email:
+            raise UserError(_("Por favor, proporcione una dirección de correo electrónico."))
+            
+        _logger.debug(f"Iniciando validación avanzada para correo: {email}")
+        
+        # Importar la clase EmailValidator (asegúrate de importarla correctamente)
+        from .email_validator import EmailValidator
+        
+        # Obtener nivel de validación desde parámetros (por defecto: 2-intermedio)
+        ICP = request.env['ir.config_parameter'].sudo()
+        validation_level = int(ICP.get_param('auth_signup_security.email_validation_level', '2'))
+        
+        _logger.debug(f"Aplicando nivel de validación {validation_level} para correo: {email}")
+        
+        # Nivel 1: Solo validación básica de sintaxis
+        if validation_level >= 1:
+            if not EmailValidator.validate_email_syntax(email):
+                _logger.warning(f"Correo rechazado por sintaxis inválida: {email}")
+                raise UserError(_("El formato del correo electrónico no es válido. Por favor, verifique e intente nuevamente."))
+        
+        # Nivel 2: Incluye detección de patrones sospechosos
+        if validation_level >= 2:
+            if EmailValidator.is_suspicious_pattern(email):
+                _logger.warning(f"Correo rechazado por patrón sospechoso: {email}")
+                raise UserError(_("El correo electrónico tiene un patrón sospechoso y ha sido rechazado por motivos de seguridad."))
+        
+        _logger.info(f"Validación avanzada exitosa para correo: {email}")
+        return True
     
     def _generate_verification_code(self):
         """Genera un código de verificación aleatorio de 6 dígitos"""
