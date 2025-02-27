@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-from odoo import models, fields
+from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class IpRegistration(models.Model):
     """
@@ -17,6 +20,8 @@ class IpRegistration(models.Model):
         ('registered', 'Usuario Registrado')
     ], string='Estado', default='registered', required=True, index=True)
 
+
+
 class BlockedEmail(models.Model):
     """
     Modelo para mantener un registro de correos bloqueados por motivos de seguridad.
@@ -33,3 +38,27 @@ class BlockedEmail(models.Model):
     _sql_constraints = [
         ('email_unique', 'unique(email)', 'Este correo ya está registrado como bloqueado.')
     ]
+    
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Sobrescribir create para registrar en el log"""
+        records = super(BlockedEmail, self).create(vals_list)
+        for record in records:
+            _logger.info(f"Correo bloqueado: {record.email}, motivo: {record.reason}")
+        return records
+    
+    def action_unblock_email(self):
+        """Método para desbloquear un correo electrónico"""
+        self.ensure_one()
+        _logger.info(f"Desbloqueando correo: {self.email}")
+        # Registrar acción en el log de eventos del usuario
+        msg = f"Correo electrónico desbloqueado: {self.email}, motivo original: {self.reason}"
+        self.env.user.log_event(msg, 'Desbloqueo de correo')
+        # Eliminar el registro
+        return self.unlink()
+    
+    def unlink(self):
+        """Sobrescribir unlink para registrar en el log"""
+        for record in self:
+            _logger.info(f"Eliminando bloqueo para correo: {record.email}")
+        return super(BlockedEmail, self).unlink()
