@@ -9,126 +9,28 @@
     
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
-            <!-- Cloudflare Turnstile -->
+            
+            <!-- Captcha Google reCAPTCHA -->
             <div class="mb-3 field-captcha">
                 <label class="form-label">Verificación de Seguridad</label>
-                <!-- Contenedor para Turnstile con ID único -->
-                <div id="cf-turnstile-container" class="cf-turnstile"
-                     data-sitekey="0x4AAAAAAA-dpmO_dMh_oBeK"
-                     data-theme="light"
-                     data-action="signup">
-                </div>
-
-                <!-- Campo oculto para almacenar el token del Captcha -->
-                <input type="hidden" name="cf-turnstile-response" id="cf-turnstile-response"/>
-
-                <!-- Cambio en la forma de verificar el error para evitar problemas con objetos Markup -->
-                <t t-if="error">
-                    <div t-if="isinstance(error, dict) and error.get('captcha')"
-                         class="alert alert-danger mt-2"
-                         role="alert">
-                        <t t-esc="error.get('captcha')"/>
-                    </div>
-                </t>
+                <div class="g-recaptcha" data-sitekey="TU_CLAVE_PUBLICA"></div>
+                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response"/>
             </div>
 
-            <!-- Términos y condiciones -->
-            <div class="mb-3 field-terms">
-                <div class="form-check">
-                    <input type="checkbox"
-                           name="accept_terms"
-                           id="accept_terms"
-                           class="form-check-input"
-                           required="required"/>
-                    <label for="accept_terms" class="form-check-label">
-                        Acepto los <a href="/page/terminos" target="_blank">términos y condiciones</a>
-                    </label>
-                </div>
-                <!-- Cambio en la forma de verificar el error para evitar problemas con objetos Markup -->
-                <t t-if="error">
-                    <div t-if="isinstance(error, dict) and error.get('terms')"
-                         class="alert alert-danger mt-2"
-                         role="alert">
-                        <t t-esc="error.get('terms')"/>
-                    </div>
-                </t>
-            </div>
+            <!-- Agregar el token CSRF -->
+            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
-            <!-- Mensaje de verificación de correo -->
-            <div class="alert alert-info mb-3">
-                <i class="fa fa-info-circle me-2"></i> Se enviará un código de verificación a tu correo electrónico.
-            </div>
-            
-            <!-- Cargar solo el script de Cloudflare Turnstile con render explicit -->
-            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async="async" defer="defer"></script>
-            
-            <!-- Script inline para inicializar Turnstile -->
-            <script type="text/javascript">
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Esperar a que se cargue Turnstile y el DOM
-                    var turnstileCheck = setInterval(function() {
-                        if (typeof turnstile !== 'undefined') {
-                            clearInterval(turnstileCheck);
-                            
-                            turnstile.ready(function() {
-                                renderTurnstile();
-                            });
+            <!-- Validar en frontend antes de enviar -->
+            <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    document.querySelector("form.oe_signup_form").addEventListener("submit", function (e) {
+                        let response = document.getElementById("g-recaptcha-response").value;
+                        if (!response) {
+                            e.preventDefault();
+                            alert("Por favor, complete el reCAPTCHA antes de continuar.");
                         }
-                    }, 100);
-                    
-                    function renderTurnstile() {
-                        const container = document.getElementById('cf-turnstile-container');
-                        if (!container) return;
-                        
-                        const sitekey = container.getAttribute('data-sitekey');
-                        if (!sitekey) return;
-                        
-                        // Limpiar contenedor si ya tiene contenido
-                        while (container.firstChild) {
-                            container.removeChild(container.firstChild);
-                        }
-                        
-                        // Renderizar Turnstile
-                        try {
-                            turnstile.render('#cf-turnstile-container', {
-                                sitekey: sitekey,
-                                callback: function(token) {
-                                    document.getElementById('cf-turnstile-response').value = token;
-                                    console.log("Token Turnstile generado correctamente");
-                                },
-                                'error-callback': function(error) {
-                                    console.error('Error en Turnstile:', error);
-                                },
-                                'timeout-callback': function() {
-                                    console.log('Tiempo de espera agotado en la verificación');
-                                }
-                            });
-                        } catch (error) {
-                            console.error('Error al renderizar Turnstile:', error);
-                        }
-                    }
-                    
-                    // Validar el formulario antes de enviar
-                    const form = document.querySelector('form.oe_signup_form');
-                    if (form &amp;&amp; !form.dataset.turnstileValidatorAttached) {
-                        form.addEventListener('submit', function(e) {
-                            const response = document.getElementById('cf-turnstile-response').value;
-                            if (!response) {
-                                e.preventDefault();
-                                const captchaField = document.querySelector('.field-captcha');
-                                if (captchaField) {
-                                    let errorContainer = captchaField.querySelector('.alert');
-                                    if (!errorContainer) {
-                                        errorContainer = document.createElement('div');
-                                        errorContainer.className = 'alert alert-danger mt-2';
-                                        captchaField.appendChild(errorContainer);
-                                    }
-                                    errorContainer.textContent = 'Por favor, completa la verificación de seguridad.';
-                                }
-                            }
-                        });
-                        form.dataset.turnstileValidatorAttached = 'true';
-                    }
+                    });
                 });
             </script>
         </xpath>
