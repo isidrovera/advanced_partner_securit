@@ -62,43 +62,40 @@ class SecurityAuthSignup(AuthSignupHome):
     def get_auth_signup_qcontext(self):
         """Sobrescribe para asegurar que providers esté definido y agregar datos de seguridad"""
         qcontext = super(SecurityAuthSignup, self).get_auth_signup_qcontext()
-        
+
         _logger.debug("Obteniendo contexto para formulario de registro")
-        
+
         # Asegurarse de que providers esté definido
         if 'providers' not in qcontext or qcontext['providers'] is None:
             qcontext['providers'] = []
             _logger.debug("Providers no definido, inicializando como lista vacía")
-            
+
         # Agregar la verificación al contexto si existe
         verification_code = request.session.get('verification_code')
         verification_email = request.session.get('verification_email')
         verification_expiry_str = request.session.get('verification_expiry')
-        
+
         if verification_code and verification_email and verification_expiry_str:
             now = fields.Datetime.now()
             try:
-                # Convertir la cadena ISO a datetime
                 verification_expiry = fields.Datetime.from_string(verification_expiry_str)
                 _logger.debug(f"Verificando estado de código para {verification_email}, expira: {verification_expiry}, ahora: {now}")
-                
+
                 if now <= verification_expiry:
                     qcontext['verification_email'] = verification_email
                     qcontext['verification_sent'] = True
                     _logger.debug(f"Código de verificación válido para {verification_email}")
                 else:
-                    # Limpiar códigos expirados
                     _logger.info(f"Limpiando código expirado para {verification_email}")
                     request.session.pop('verification_code', None)
                     request.session.pop('verification_email', None)
                     request.session.pop('verification_expiry', None)
             except Exception as e:
                 _logger.error(f"Error al procesar fecha de expiración: {str(e)}", exc_info=True)
-                # Limpiar datos de sesión inválidos
                 request.session.pop('verification_code', None)
                 request.session.pop('verification_email', None)
                 request.session.pop('verification_expiry', None)
-        
+
         return qcontext
     
     @http.route('/web/signup', type='http', auth='public', website=True, sitemap=False)
@@ -106,150 +103,151 @@ class SecurityAuthSignup(AuthSignupHome):
         """Sobrescribe el método de registro para añadir controles de seguridad"""
         _logger.info(f"Acceso a formulario de registro desde IP: {self.get_client_ip()}, método: {request.httprequest.method}")
 
-        
         qcontext = self.get_auth_signup_qcontext()
-        
-        # Estado del registro: 
-        # 'pre' - Inicio del registro, muestra formulario inicial
-        # 'verify' - Enviado código, muestra formulario de verificación
-        # 'submit' - Verificado, procede al registro final
+
+        # Estado del registro
         registration_state = request.session.get('registration_state', 'pre')
         _logger.info(f"Estado actual del registro: {registration_state}")
-        
+
         # Si estamos en un POST, procesamos según el estado
         if request.httprequest.method == 'POST':
             _logger.info(f"Procesando petición POST en estado: {registration_state}")
-            
+
             # 1. Primer paso: validación inicial y envío de código
             if registration_state == 'pre' and kw.get('email'):
                 email = kw.get('email', '').strip().lower()
                 _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {self.get_client_ip()}")
-                
-                # Validar reCAPTCHA primero
+
+                # =================================================================
+                # CAMBIO: Obtener recaptcha_enabled DESDE LA CONFIGURACIÓN DE ODOO
+                # =================================================================
                 recaptcha_response = kw.get('g-recaptcha-response')
-                recaptcha_enabled = kw.get('recaptcha_enabled') == 'True'
-                
-                if recaptcha_enabled and not self._validate_recaptcha(recaptcha_response):
-                    _logger.warning(f"Validación de reCAPTCHA fallida para correo: {email}, IP: {self.get_client_ip()}")
-                    qcontext['error'] = _("Por favor, complete la verificación de reCAPTCHA.")
-                    return request.render('auth_signup.signup', qcontext)
+
+                # Obtén la configuración de reCAPTCHA desde la BD
+                RecaptchaConfig = request.env['auth_signup_security.recaptcha_config'].sudo().get_config()
+                recaptcha_enabled = RecaptchaConfig and RecaptchaConfig.is_enabled
+
+                # Validar reCAPTCHA si está habilitado en la base de datos
+                if recaptcha_enabled:
+                    # Si no hay respuesta del formulario, error
+                    if not recaptcha_response:
+                        _logger.warning(f"No se recibió respuesta de reCAPTCHA para correo: {email}, IP: {self.get_client_ip()}")
+                        qcontext['error'] = _("Por favor, complete la verificación de reCAPTCHA.")
+                        return request.render('auth_signup.signup', qcontext)
+
+                    # Validar la respuesta
+                    if not self._validate_recaptcha(recaptcha_response):
+                        _logger.warning(f"Validación de reCAPTCHA fallida para correo: {email}, IP: {self.get_client_ip()}")
+                        qcontext['error'] = _("Por favor, complete la verificación de reCAPTCHA.")
+                        return request.render('auth_signup.signup', qcontext)
+                # =================================================================
+                # FIN DEL CAMBIO
+                # =================================================================
+
                 try:
                     # Validar que el correo no esté bloqueado
                     _logger.debug(f"Validando si el correo {email} está bloqueado")
                     self._validate_email_not_blocked(email)
                     _logger.info(f"Correo {email} no está bloqueado")
-                    
+
                     # Validar límite de IP para registros completos
                     _logger.debug(f"Validando límite de IP para: {self.get_client_ip()}")
                     self._validate_ip_limit()
                     _logger.info(f"Validación de IP exitosa para: {self.get_client_ip()}")
-                    
+
                     # Validar límite de envío de códigos por IP
                     _logger.debug(f"Validando límite de envío de códigos para IP: {self.get_client_ip()}")
                     self._validate_verification_code_limit()
                     _logger.info(f"Validación de límite de envío de códigos exitosa para IP: {self.get_client_ip()}")
-                    
+
                     # Validar que el correo no haya solicitado códigos desde múltiples IPs
                     _logger.debug(f"Validando solicitudes desde múltiples IPs para: {email}")
                     self._validate_multiple_ip_requests(email)
                     _logger.info(f"Validación de múltiples IPs exitosa para: {email}")
-                    
+
                     # Validar dominio de correo
                     _logger.debug(f"Validando dominio de correo para: {email}")
                     self._validate_email_domain(email)
                     _logger.info(f"Validación de dominio exitosa para correo: {email}")
-                    
-                    # Si pasa validaciones, enviar código de verificación
+
+                    # Generar el código de verificación
                     verification_code = self._generate_verification_code()
                     verification_expiry = fields.Datetime.now() + timedelta(minutes=30)
-                    
-                    # Convertir datetime a string ISO para almacenamiento en sesión
                     verification_expiry_str = fields.Datetime.to_string(verification_expiry)
-                    
+
                     _logger.debug(f"Generado código de verificación: {verification_code} para: {email}, expira: {verification_expiry}")
-                    
+
                     # Guardar en sesión
                     request.session['verification_code'] = verification_code
                     request.session['verification_email'] = email
-                    request.session['verification_expiry'] = verification_expiry_str  # Guardar como string
+                    request.session['verification_expiry'] = verification_expiry_str
                     request.session['registration_state'] = 'verify'
-                    
-                    # Enviar correo
+
+                    # Enviar correo con el código
                     _logger.debug(f"Enviando correo con código a: {email}")
                     self._send_verification_email(email, verification_code)
                     _logger.info(f"Código de verificación enviado a {email}, expira en: {verification_expiry}")
-                    
-                    # Registrar el envío de código en la tabla de registros de IP
+
+                    # Registrar el envío de código
                     self._register_code_sent(email)
-                    
-                    # Actualizar contexto
+
                     qcontext['verification_email'] = email
                     qcontext['verification_sent'] = True
                     qcontext['error'] = None
-                    
-                    # Renderizar página de verificación
+
                     _logger.info(f"Redirigiendo a página de verificación para: {email}")
                     return request.render('advanced_partner_securit.signup_verification', qcontext)
-                    
+
                 except UserError as e:
                     _logger.warning(f"Error en validación de registro para {email}: {str(e)}")
                     qcontext['error'] = str(e)
                 except Exception as e:
                     _logger.error(f"Error inesperado en registro para {email}: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error en el proceso de registro. Por favor, inténtelo de nuevo más tarde.")
-                
+
             # 2. Segundo paso: validación del código
             elif registration_state == 'verify' and kw.get('verification_code'):
                 stored_code = request.session.get('verification_code')
                 verification_expiry_str = request.session.get('verification_expiry')
                 verification_email = request.session.get('verification_email')
                 user_code = kw.get('verification_code', '').strip()
-                
+
                 _logger.info(f"Verificando código para {verification_email}: código ingresado: {user_code}")
-                
+
                 now = fields.Datetime.now()
-                
                 if not stored_code or not verification_expiry_str:
                     _logger.warning(f"No se encontró código almacenado o fecha de expiración para {verification_email}")
                     qcontext['error'] = _("Ha ocurrido un error con el código de verificación. Por favor, solicite uno nuevo.")
                     request.session['registration_state'] = 'pre'
                     return request.render('auth_signup.signup', qcontext)
-                
+
                 try:
-                    # Convertir la cadena ISO a datetime
                     verification_expiry = fields.Datetime.from_string(verification_expiry_str)
-                    
                     if now > verification_expiry:
                         _logger.warning(f"Código expirado para {verification_email}, expiración: {verification_expiry}, ahora: {now}")
                         qcontext['error'] = _("El código de verificación ha expirado. Por favor, solicite uno nuevo.")
                         request.session['registration_state'] = 'pre'
                         return request.render('auth_signup.signup', qcontext)
-                    
+
                     if user_code != stored_code:
                         _logger.warning(f"Código incorrecto para {verification_email}: esperado {stored_code}, recibido {user_code}")
-                        
-                        # Registrar intento fallido
                         self._register_failed_verification_attempt(verification_email)
-                        
                         qcontext['error'] = _("Código de verificación incorrecto. Por favor, inténtelo de nuevo.")
                         return request.render('advanced_partner_securit.signup_verification', qcontext)
-                    
-                    # Código correcto, proceder al registro final
+
                     _logger.info(f"Código verificado correctamente para {verification_email}")
                     request.session['registration_state'] = 'submit'
                     qcontext['verified'] = True
-                    
-                    # Preparar datos para el formulario final
                     qcontext['email'] = verification_email
-                    
-                    # Renderizar formulario final
+
                     _logger.info(f"Redirigiendo a formulario final para: {verification_email}")
                     return request.render('advanced_partner_securit.signup_final', qcontext)
                 except Exception as e:
                     _logger.error(f"Error al procesar verificación: {str(e)}", exc_info=True)
                     qcontext['error'] = _("Ha ocurrido un error al verificar el código. Por favor, inténtelo de nuevo.")
                     return request.render('advanced_partner_securit.signup_verification', qcontext)
-                # 3. Tercer paso: registro final
+
+            # 3. Tercer paso: registro final
             elif registration_state == 'submit':
                 verification_email = request.session.get('verification_email', '').strip()
                 _logger.info(f"Procesando registro final para: {verification_email}")
@@ -264,11 +262,11 @@ class SecurityAuthSignup(AuthSignupHome):
                 qcontext['email'] = verification_email
                 qcontext['name'] = kw.get('name')
                 qcontext['password'] = kw.get('password')
-                
+
                 # También asegurar que estén en kw
                 kw['login'] = verification_email
                 kw['email'] = verification_email
-                
+
                 try:
                     _logger.debug(f"Registrando usuario con email: {verification_email}")
 
@@ -283,25 +281,19 @@ class SecurityAuthSignup(AuthSignupHome):
 
                     _logger.info(f"Procediendo con registro final para: {verification_email}")
 
-                    # Implementación para evitar el uso de get_request()
                     try:
-                        # Crear el usuario con do_signup
                         self.do_signup(qcontext)
-                        
-                        # Hacer commit de la transacción actual
                         request.env.cr.commit()
-                        
-                        # Intentar autenticar automáticamente (versión corregida)
+
                         try:
                             uid = request.session.authenticate(verification_email, kw.get('password'))
                             if uid:
                                 return request.redirect('/web')
                         except Exception as e:
                             _logger.warning(f"No se pudo autenticar automáticamente: {e}")
-                        
-                        # Si la autenticación automática falla, redirigir al login
-                        return request.redirect('/web/login?message=Su cuenta ha sido creada correctamente. Por favor, inicie sesión.')
-                        
+
+                        return request.redirect('/web/login?message=Su cuenta ha sido creada correctamente. Por favor, inicie sesión.")
+
                     except Exception as e:
                         _logger.error(f"Error en do_signup: {str(e)}", exc_info=True)
                         qcontext['error'] = str(e)
@@ -315,7 +307,7 @@ class SecurityAuthSignup(AuthSignupHome):
         # Para peticiones GET o estados no reconocidos, mostrar formulario inicial
         _logger.info(f"Mostrando formulario inicial de registro para IP: {self.get_client_ip()}")
         request.session['registration_state'] = 'pre'
-        return request.render('auth_signup.signup', qcontext)
+        return request.render('auth_signup.signup', qcontext))
     
     def _validate_ip_limit(self):
         """Valida que una IP no haya creado más de tres usuarios por día"""

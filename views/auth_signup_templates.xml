@@ -11,11 +11,13 @@
         <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
             
             <!-- Captcha Google reCAPTCHA -->
-            <div class="mb-3 field-captcha">
-                <label class="form-label">Verificación de Seguridad</label>
-                <div class="g-recaptcha" data-sitekey="TU_CLAVE_PUBLICA"></div>
-                <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response"/>
-            </div>
+            <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled">
+                <div class="mb-3 field-captcha">
+                    <label class="form-label">Verificación de Seguridad</label>
+                    <div class="g-recaptcha" t-att-data-sitekey="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().site_key"></div>
+                    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response"/>
+                </div>
+            </t>
 
             <!-- Agregar el token CSRF -->
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -24,13 +26,16 @@
             <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
-                    document.querySelector("form.oe_signup_form").addEventListener("submit", function (e) {
-                        let response = document.getElementById("g-recaptcha-response").value;
-                        if (!response) {
-                            e.preventDefault();
-                            alert("Por favor, complete el reCAPTCHA antes de continuar.");
-                        }
-                    });
+                    let form = document.querySelector("form.oe_signup_form");
+                    if (form) {
+                        form.addEventListener("submit", function (e) {
+                            let response = document.getElementById("g-recaptcha-response").value;
+                            if (!response) {
+                                e.preventDefault();
+                                alert("Por favor, complete el reCAPTCHA antes de continuar.");
+                            }
+                        });
+                    }
                 });
             </script>
         </xpath>
