@@ -16,6 +16,7 @@ class SecurityAuthSignup(AuthSignupHome):
     1. Restricción por IP: máximo un usuario por día
     2. Validación de dominios de correo confiables
     3. Verificación por código enviado al correo
+    4. NUEVO: Limitar envío de códigos de verificación a uno por IP
     """
     def get_client_ip(self):
         """
@@ -119,10 +120,15 @@ class SecurityAuthSignup(AuthSignupHome):
                 _logger.info(f"Iniciando proceso de registro para correo: {email} desde IP: {self.get_client_ip()}")
                 
                 try:
-                    # Validar límite de IP
+                    # Validar límite de IP para registros completos
                     _logger.debug(f"Validando límite de IP para: {self.get_client_ip()}")
                     self._validate_ip_limit()
                     _logger.info(f"Validación de IP exitosa para: {self.get_client_ip()}")
+                    
+                    # NUEVO: Validar límite de envío de códigos por IP
+                    _logger.debug(f"Validando límite de envío de códigos para IP: {self.get_client_ip()}")
+                    self._validate_verification_code_limit()
+                    _logger.info(f"Validación de límite de envío de códigos exitosa para IP: {self.get_client_ip()}")
                     
                     # Validar dominio de correo
                     _logger.debug(f"Validando dominio de correo para: {email}")
@@ -148,6 +154,9 @@ class SecurityAuthSignup(AuthSignupHome):
                     _logger.debug(f"Enviando correo con código a: {email}")
                     self._send_verification_email(email, verification_code)
                     _logger.info(f"Código de verificación enviado a {email}, expira en: {verification_expiry}")
+                    
+                    # NUEVO: Registrar el envío de código en la tabla de registros de IP
+                    self._register_code_sent(email)
                     
                     # Actualizar contexto
                     qcontext['verification_email'] = email
@@ -236,7 +245,7 @@ class SecurityAuthSignup(AuthSignupHome):
                 try:
                     _logger.debug(f"Registrando usuario con email: {verification_email}")
 
-                    # Registrar IP
+                    # Registrar IP para el registro completo
                     self._register_ip_usage()
 
                     # Limpiar datos de sesión después del registro exitoso
@@ -289,20 +298,43 @@ class SecurityAuthSignup(AuthSignupHome):
 
         _logger.debug(f"Validando límite de IP para: {ip}, periodo: {yesterday} - {today}")
 
-        # Buscar registros de IP en las últimas 24 horas
+        # Buscar registros de IP en las últimas 24 horas con estado 'registered'
         IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
         registrations = IpRegistration.search([
             ('ip_address', '=', ip),
-            ('create_date', '>=', yesterday)
+            ('create_date', '>=', yesterday),
+            ('state', '=', 'registered')  # Solo contar registros completos
         ])
 
         _logger.info(f"Validando límite IP para {ip}, registros existentes: {len(registrations)}")
 
-        if len(registrations) >= 3:  # Cambio: permitir hasta 3 registros
+        if len(registrations) >= 3:  # Permitir hasta 3 registros
             reg_emails = ', '.join([r.email for r in registrations])
             _logger.warning(f"Intento de registro múltiple bloqueado para IP: {ip}, registros previos: {len(registrations)}, correos: {reg_emails}")
             raise UserError(_("Por razones de seguridad, solo se permiten tres registros por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
 
+    def _validate_verification_code_limit(self):
+        """NUEVO: Valida que una IP no solicite más de un código de verificación por día"""
+        ip = self.get_client_ip()
+        today = fields.Date.today()
+        yesterday = today - timedelta(days=1)
+
+        _logger.debug(f"Validando límite de envío de códigos para IP: {ip}, periodo: {yesterday} - {today}")
+
+        # Buscar registros de códigos enviados en las últimas 24 horas
+        IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
+        code_requests = IpRegistration.search([
+            ('ip_address', '=', ip),
+            ('create_date', '>=', yesterday),
+            ('state', '=', 'code_sent')  # Solo contar solicitudes de código
+        ])
+
+        _logger.info(f"Validando límite de envío de códigos para IP {ip}, solicitudes existentes: {len(code_requests)}")
+
+        if len(code_requests) >= 1:  # Permitir solo 1 código por IP por día
+            req_emails = ', '.join([r.email for r in code_requests])
+            _logger.warning(f"Intento de solicitud múltiple de códigos bloqueado para IP: {ip}, solicitudes previas: {len(code_requests)}, correos: {req_emails}")
+            raise UserError(_("Por razones de seguridad, solo se permite solicitar un código de verificación por día desde la misma dirección IP. Por favor, inténtelo más tarde o contacte al soporte."))
     
     def _validate_email_domain(self, email):
         """Valida que el dominio de correo sea confiable"""
@@ -364,6 +396,26 @@ class SecurityAuthSignup(AuthSignupHome):
             _logger.error(f"Error al enviar correo a {email}: {str(e)}", exc_info=True)
             raise UserError(_("No se pudo enviar el correo de verificación. Por favor, inténtelo de nuevo más tarde."))
 
+    def _register_code_sent(self, email):
+        """NUEVO: Registra el envío de un código de verificación"""
+        ip = self.get_client_ip()
+        
+        _logger.debug(f"Registrando envío de código para IP: {ip}, correo: {email}")
+        
+        try:
+            IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
+            new_record = IpRegistration.create({
+                'ip_address': ip,
+                'email': email,
+                'state': 'code_sent'  # Estado para indicar que se envió un código
+            })
+            
+            _logger.info(f"Registro exitoso de envío de código para {email} desde IP {ip}, registro ID: {new_record.id}")
+            return new_record
+        except Exception as e:
+            _logger.error(f"Error al registrar envío de código para IP {ip}, correo {email}: {str(e)}", exc_info=True)
+            raise
+
     def _register_ip_usage(self):
         """Registra el uso de una IP para crear cuenta"""
         ip = self.get_client_ip()
@@ -375,7 +427,8 @@ class SecurityAuthSignup(AuthSignupHome):
             IpRegistration = request.env['auth_signup_security.ip_registration'].sudo()
             new_record = IpRegistration.create({
                 'ip_address': ip,
-                'email': email
+                'email': email,
+                'state': 'registered'  # Estado para indicar registro completo
             })
 
             _logger.info(f"Registro exitoso: nuevo usuario {email} desde IP {ip}, registro ID: {new_record.id}")
