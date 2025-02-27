@@ -292,7 +292,7 @@ class SecurityAuthSignup(AuthSignupHome):
                         except Exception as e:
                             _logger.warning(f"No se pudo autenticar automáticamente: {e}")
 
-                        return request.redirect('/web/login?message=Su cuenta ha sido creada correctamente. Por favor, inicie sesión.")
+                        return request.redirect('/web/login?message=Su cuenta ha sido creada correctamente. Por favor, inicie sesión.')
 
                     except Exception as e:
                         _logger.error(f"Error en do_signup: {str(e)}", exc_info=True)
