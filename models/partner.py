@@ -20,36 +20,21 @@ class CustomResPartner(models.Model):
     @api.model
     def create(self, vals):
         # Obtener la IP del usuario directamente del objeto request
-        # CAMBIO AQUÍ: Usar el objeto request directamente en lugar de ir.http.get_request()
         if hasattr(request, 'httprequest'):
             vals['registration_ip'] = request.httprequest.remote_addr
             vals['registration_date'] = fields.Datetime.now()
-        
-        # Verificar si ya existe un usuario con la misma IP registrado hoy
-        if vals.get('registration_ip'):
-            today_start = datetime.datetime.now().replace(hour=0, minute=0, second=0)
-            today_end = datetime.datetime.now().replace(hour=23, minute=59, second=59)
-            
-            same_ip_today = self.env['res.partner'].search([
-                ('registration_ip', '=', vals.get('registration_ip')),
-                ('registration_date', '>=', today_start),
-                ('registration_date', '<=', today_end),
-                ('type', '=', 'contact')  # Solo conteos principales, no direcciones
-            ], limit=1)
-            
-            if same_ip_today:
-                raise ValidationError(_("Solo se permite un registro por IP por día. Inténtelo mañana."))
-        
+
         # Verificar que el email sea válido
         if vals.get('email'):
             if not self._is_valid_email(vals.get('email')):
                 raise ValidationError(_("El correo electrónico no parece ser válido."))
-            
+
             # Verificar que no sea un dominio de correo desechable
             if self._is_disposable_email(vals.get('email')):
                 raise ValidationError(_("No se permiten correos electrónicos temporales o desechables."))
-        
+
         return super(CustomResPartner, self).create(vals)
+
     
     def _is_valid_email(self, email):
         """Verificar si el formato del correo es válido usando regex"""
