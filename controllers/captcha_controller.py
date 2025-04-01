@@ -474,7 +474,7 @@ class SecurityAuthSignup(AuthSignupHome):
         # Obtener dominios permitidos de la configuración
         ICP = request.env['ir.config_parameter'].sudo()
         allowed_domains_str = ICP.get_param('auth_signup_security.allowed_email_domains', 
-                                        'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com')
+                                        'gmail.com,hotmail.com,outlook.com,yahoo.com,live.com,icloud.com,maccaferri.com')
         allowed_domains = [d.strip().lower() for d in allowed_domains_str.split(',')]
         
         _logger.debug(f"Dominios permitidos: {allowed_domains}")
