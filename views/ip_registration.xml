@@ -35,31 +35,7 @@
 
    
 
-    <!-- Vista de gráfico actualizada para IpRegistration -->
-    <record id="view_ip_registration_graph" model="ir.ui.view">
-        <field name="name">auth_signup_security.ip_registration.graph</field>
-        <field name="model">auth_signup_security.ip_registration</field>
-        <field name="arch" type="xml">
-            <graph string="Registros de IP por día" type="bar">
-                <field name="create_date" interval="day"/>
-                <field name="state"/>
-                <field name="ip_address" type="count"/>
-            </graph>
-        </field>
-    </record>
-
-    <!-- Vista de pivot actualizada para IpRegistration -->
-    <record id="view_ip_registration_pivot" model="ir.ui.view">
-        <field name="name">auth_signup_security.ip_registration.pivot</field>
-        <field name="model">auth_signup_security.ip_registration</field>
-        <field name="arch" type="xml">
-            <pivot string="Análisis de Registros de IP">
-                <field name="create_date" interval="day" type="row"/>
-                <field name="state" type="col"/>
-                <field name="ip_address" type="measure"/>
-            </pivot>
-        </field>
-    </record>
+   
 
     <!-- Acción de ventana actualizada para IpRegistration -->
     <record id="action_ip_registration" model="ir.actions.act_window">
@@ -123,28 +99,7 @@
         </field>
     </record>
 
-    <!-- Vista de búsqueda para BlockedEmail -->
-    <record id="view_blocked_email_search" model="ir.ui.view">
-        <field name="name">auth_signup_security.blocked_email.search</field>
-        <field name="model">auth_signup_security.blocked_email</field>
-        <field name="arch" type="xml">
-            <search string="Buscar Correos Bloqueados">
-                <field name="email"/>
-                <field name="reason"/>
-                <filter string="Bloqueo Permanente" name="permanent" domain="[('is_permanent','=',True)]"/>
-                <filter string="Bloqueo Temporal" name="temporary" domain="[('is_permanent','=',False)]"/>
-                <separator/>
-                <filter string="Hoy" name="today" domain="[('blocked_date','&gt;=',context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="Ayer" name="yesterday" domain="[('blocked_date','&gt;=',(context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')),('blocked_date','&lt;',context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="Últimos 7 días" name="last_week" domain="[('blocked_date','&gt;=',(context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
-                <group expand="0" string="Agrupar por">
-                    <filter string="Motivo" name="group_by_reason" context="{'group_by': 'reason'}"/>
-                    <filter string="Fecha de Bloqueo" name="group_by_date" context="{'group_by': 'blocked_date:day'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
-
+   
     <!-- Acción de ventana para BlockedEmail -->
     <record id="action_blocked_email" model="ir.actions.act_window">
         <field name="name">Correos Bloqueados</field>
