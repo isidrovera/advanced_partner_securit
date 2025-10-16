@@ -33,30 +33,7 @@
         </field>
     </record>
 
-    <!-- Vista de búsqueda actualizada para IpRegistration -->
-    <record id="view_ip_registration_search" model="ir.ui.view">
-        <field name="name">auth_signup_security.ip_registration.search</field>
-        <field name="model">auth_signup_security.ip_registration</field>
-        <field name="arch" type="xml">
-            <search string="Buscar registros de IP">
-                <field name="ip_address"/>
-                <field name="email"/>
-                <field name="state"/>
-                <field name="create_date"/>
-                <filter string="Código Enviado" name="code_sent" domain="[('state','=','code_sent')]"/>
-                <filter string="Usuario Registrado" name="registered" domain="[('state','=','registered')]"/>
-                <separator/>
-                <filter string="Hoy" name="today" domain="[('create_date','&gt;=',context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="Ayer" name="yesterday" domain="[('create_date','&gt;=',(context_today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')),('create_date','&lt;',context_today().strftime('%Y-%m-%d'))]"/>
-                <filter string="Últimos 7 días" name="last_week" domain="[('create_date','&gt;=',(context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
-                <group expand="0" string="Agrupar por">
-                    <filter string="Estado" name="group_by_state" context="{'group_by': 'state'}"/>
-                    <filter string="Dirección IP" name="group_by_ip" context="{'group_by': 'ip_address'}"/>
-                    <filter string="Fecha" name="group_by_date" context="{'group_by': 'create_date:day'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
+   
 
     <!-- Vista de gráfico actualizada para IpRegistration -->
     <record id="view_ip_registration_graph" model="ir.ui.view">
