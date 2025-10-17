@@ -1,20 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Agregar reCAPTCHA al formulario simplificado de registro -->
-    <template id="signup_form_with_captcha" inherit_id="advanced_partner_securit.signup_form_simplified">
-        <!-- Agregar la librería de reCAPTCHA en el head -->
-        <xpath expr="//t[@t-call='web.login_layout']" position="before">
-            <t t-set="head">
-                <script t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config() and request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled" src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
-            </t>
-        </xpath>
-        
-        <!-- Agregar el reCAPTCHA antes del botón de enviar código -->
-        <xpath expr="//div[hasclass('clearfix')]" position="before">
-            <div t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config() and request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled" class="mb-3">
-                <div class="g-recaptcha" t-attf-data-sitekey="#{request.env['auth_signup_security.recaptcha_config'].sudo().get_config().site_key}"></div>
-                <small class="form-text text-muted">Confirme que no es un robot.</small>
-            </div>
-        </xpath>
-    </template>
+    
 </odoo>
