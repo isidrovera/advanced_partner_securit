@@ -13,6 +13,7 @@ class CustomResPartner(models.Model):
     _inherit = 'res.partner'
     
     has_license = fields.Boolean(string="Tiene licencia", default=False)
+    mail_cc = fields.Char(string="CC de correo", help="Dirección de correo para CC en notificaciones")
     registration_ip = fields.Char(string="IP de registro", readonly=True)
     registration_date = fields.Datetime(string="Fecha de registro", readonly=True)
     is_verified_email = fields.Boolean(string="Email verificado", default=False)
