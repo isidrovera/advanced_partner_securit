@@ -11,7 +11,7 @@
                 <page string="Licencias">
                     <group>
                         <field name="has_license"/>
-                        <field namere="mail_cc"/>
+                        <field name="mail_cc"/>
                         <field name="is_distributor"/>
                         <field name="whatsapp_phone" invisible="not is_distributor"/>
                         <field name="notify_new_stock" invisible="not is_distributor"/>
