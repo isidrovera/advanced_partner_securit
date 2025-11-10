@@ -132,23 +132,25 @@ class CustomResPartner(models.Model):
         except:
             return False
     
-    @api.model
-    def create(self, vals):
-        # Obtener la IP del usuario directamente del objeto request
-        if hasattr(request, 'httprequest'):
-            vals['registration_ip'] = request.httprequest.remote_addr
-            vals['registration_date'] = fields.Datetime.now()
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Procesar cada registro en la lista
+        for vals in vals_list:
+            # Obtener la IP del usuario directamente del objeto request
+            if hasattr(request, 'httprequest'):
+                vals['registration_ip'] = request.httprequest.remote_addr
+                vals['registration_date'] = fields.Datetime.now()
 
-        # Verificar que el email sea válido
-        if vals.get('email'):
-            if not self._is_valid_email(vals.get('email')):
-                raise ValidationError(_("El correo electrónico no parece ser válido."))
+            # Verificar que el email sea válido
+            if vals.get('email'):
+                if not self._is_valid_email(vals.get('email')):
+                    raise ValidationError(_("El correo electrónico no parece ser válido."))
 
-            # Verificar que no sea un dominio de correo desechable
-            if self._is_disposable_email(vals.get('email')):
-                raise ValidationError(_("No se permiten correos electrónicos temporales o desechables."))
+                # Verificar que no sea un dominio de correo desechable
+                if self._is_disposable_email(vals.get('email')):
+                    raise ValidationError(_("No se permiten correos electrónicos temporales o desechables."))
 
-        return super(CustomResPartner, self).create(vals)
+        return super(CustomResPartner, self).create(vals_list)
 
     
     def _is_valid_email(self, email):
