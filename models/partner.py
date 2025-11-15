@@ -172,13 +172,14 @@ class CustomResPartner(models.Model):
 class ResUsers(models.Model):
     _inherit = 'res.users'
     
-    @api.model
-    def create(self, vals):
+    @api.model_create_multi
+    def create(self, vals_list):
         """Sobreescribe create para agregar verificación de CAPTCHA si es necesario"""
-        if not vals.get('captcha_verified', False):
-            # Implementa aquí la lógica para verificar CAPTCHA
-            # Esta es una implementación mock, deberías usar un servicio real como reCAPTCHA
-            _logger.info("Se debería verificar CAPTCHA aquí")
-            # vals['captcha_verified'] = True
-        
-        return super(ResUsers, self).create(vals)
+        for vals in vals_list:
+            if not vals.get('captcha_verified', False):
+                # Aquí deberías implementar la lógica real de CAPTCHA
+                _logger.info("Se debería verificar CAPTCHA aquí")
+                # Ejemplo si luego lo manejas externamente:
+                # vals['captcha_verified'] = True
+
+        return super(ResUsers, self).create(vals_list)
