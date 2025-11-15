@@ -169,17 +169,3 @@ class CustomResPartner(models.Model):
             'getnada.com', 'spamex.com', 'mytrashmail.com'
         ]
         return domain in disposable_domains
-class ResUsers(models.Model):
-    _inherit = 'res.users'
-    
-    @api.model_create_multi
-    def create(self, vals_list):
-        """Sobreescribe create para agregar verificación de CAPTCHA si es necesario"""
-        for vals in vals_list:
-            if not vals.get('captcha_verified', False):
-                # Aquí deberías implementar la lógica real de CAPTCHA
-                _logger.info("Se debería verificar CAPTCHA aquí")
-                # Ejemplo si luego lo manejas externamente:
-                # vals['captcha_verified'] = True
-
-        return super(ResUsers, self).create(vals_list)
