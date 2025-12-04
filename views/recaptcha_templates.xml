@@ -1,38 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Extender el formulario estándar de signup para ajustar estilos y añadir reCAPTCHA -->
+    <!-- Heredamos el formulario de registro estándar y agregamos el reCAPTCHA -->
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
 
-        <!-- Ajustar el formulario (ancho centrado) -->
+        <!-- (Opcional) Ajustar el formulario para centrarlo -->
         <xpath expr="//form[contains(@class,'oe_signup_form')]" position="attributes">
             <attribute name="style">max-width: 600px; margin: auto;</attribute>
         </xpath>
 
-        <!-- Insertar reCAPTCHA dentro del formulario -->
+        <!-- Insertar reCAPTCHA dentro del formulario, usando tu lógica original -->
         <xpath expr="//form[contains(@class,'oe_signup_form')]" position="inside">
-            <!-- Bloque reCAPTCHA solo si está configurado y habilitado -->
-            <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config()
+            <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config() 
                      and request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled">
                 <div class="mb-3 field-captcha">
                     <label class="form-label">Verificación de Seguridad</label>
                     <div class="g-recaptcha"
                          t-att-data-sitekey="request.env['auth_signup_security.recaptcha_config'].sudo().get_config().site_key">
                     </div>
+                    <!-- Este hidden lo tenías en tu código original -->
+                    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response" />
                 </div>
             </t>
 
-            <!-- Librería de reCAPTCHA -->
+            <!-- JS de reCAPTCHA como en tu código original -->
             <script src="https://www.google.com/recaptcha/api.js" async="async" defer="defer"></script>
-
-            <!-- Validación en el cliente: exige que el token exista antes de enviar -->
             <script>
                 document.addEventListener("DOMContentLoaded", function () {
-                    var form = document.querySelector("form.oe_signup_form");
+                    let form = document.querySelector("form.oe_signup_form");
                     if (form) {
                         form.addEventListener("submit", function (e) {
-                            var responseEl = document.getElementById("g-recaptcha-response");
-                            if (!responseEl || !responseEl.value) {
+                            let response = document.getElementById("g-recaptcha-response").value;
+                            if (!response) {
                                 e.preventDefault();
                                 alert("Por favor, complete el reCAPTCHA antes de continuar.");
                             }
@@ -43,7 +42,7 @@
         </xpath>
     </template>
 
-    <!-- Página de términos y condiciones (usa solo UNA definición de este id en todo el módulo) -->
+    <!-- Página de términos y condiciones (solo una definición de este id en TODO el módulo) -->
     <template id="terms_page" name="Términos y Condiciones">
         <t t-call="website.layout">
             <div class="container mt-4 mb-5">
@@ -51,67 +50,46 @@
                 <div class="card">
                     <div class="card-body">
                         <h3>1. Aceptación de los Términos</h3>
-                        <p>
-                            Al registrarse y utilizar nuestro servicio, usted acepta estos términos y
-                            condiciones en su totalidad.
-                        </p>
+                        <p>Al registrarse y utilizar nuestro servicio, usted acepta estos términos y
+                            condiciones en su totalidad.</p>
 
                         <h3>2. Descripción del Servicio</h3>
-                        <p>
-                            Proporcionamos una plataforma para gestión empresarial basada en Odoo. El
-                            servicio puede cambiar con el tiempo según las actualizaciones del sistema.
-                        </p>
+                        <p>Proporcionamos una plataforma para gestión empresarial basada en Odoo. El
+                            servicio puede cambiar con el tiempo según las actualizaciones del sistema.</p>
 
                         <h3>3. Registro y Seguridad</h3>
-                        <p>
-                            Usted es responsable de mantener la confidencialidad de su cuenta y
+                        <p>Usted es responsable de mantener la confidencialidad de su cuenta y
                             contraseña. Notifíquenos de inmediato si cree que su cuenta ha sido
-                            comprometida.
-                        </p>
+                            comprometida.</p>
 
                         <h3>4. Privacidad</h3>
-                        <p>
-                            Su privacidad es importante para nosotros. Consulte nuestra Política de
+                        <p>Su privacidad es importante para nosotros. Consulte nuestra Política de
                             Privacidad para entender cómo recopilamos, usamos y protegemos sus
-                            datos.
-                        </p>
+                            datos.</p>
 
                         <h3>5. Conducta del Usuario</h3>
-                        <p>
-                            Está prohibido usar el servicio para actividades ilegales o no
+                        <p>Está prohibido usar el servicio para actividades ilegales o no
                             autorizadas. Nos reservamos el derecho de suspender cuentas que violen
-                            estas condiciones.
-                        </p>
+                            estas condiciones.</p>
 
                         <h3>6. Propiedad Intelectual</h3>
-                        <p>
-                            Todo el contenido y software asociado con el servicio está protegido por
-                            leyes de propiedad intelectual.
-                        </p>
+                        <p>Todo el contenido y software asociado con el servicio está protegido por
+                            leyes de propiedad intelectual.</p>
 
                         <h3>7. Terminación</h3>
-                        <p>
-                            Podemos terminar o suspender su acceso al servicio inmediatamente, sin
-                            previo aviso, por cualquier razón.
-                        </p>
+                        <p>Podemos terminar o suspender su acceso al servicio inmediatamente, sin
+                            previo aviso, por cualquier razón.</p>
 
                         <h3>8. Limitación de Responsabilidad</h3>
-                        <p>
-                            No seremos responsables por daños indirectos, incidentales, especiales,
-                            consecuentes o punitivos resultantes del uso de nuestro servicio.
-                        </p>
+                        <p>No seremos responsables por daños indirectos, incidentales, especiales,
+                            consecuentes o punitivos resultantes del uso de nuestro servicio.</p>
 
                         <h3>9. Cambios en los Términos</h3>
-                        <p>
-                            Podemos modificar estos términos en cualquier momento. Es su
-                            responsabilidad revisarlos periódicamente.
-                        </p>
+                        <p>Podemos modificar estos términos en cualquier momento. Es su
+                            responsabilidad revisarlos periódicamente.</p>
 
                         <h3>10. Contacto</h3>
-                        <p>
-                            Si tiene preguntas sobre estos términos, contáctenos a través de
-                            soporte@miempresa.com.
-                        </p>
+                        <p>Si tiene preguntas sobre estos términos, contáctenos a través de soporte@miempresa.com.</p>
                     </div>
                 </div>
                 <div class="d-flex justify-content-center mt-4">
