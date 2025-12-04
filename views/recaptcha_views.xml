@@ -28,11 +28,7 @@
                     <div class="alert alert-info" role="alert">
                         <p>Para configurar reCAPTCHA:</p>
                         <ol>
-                            <li>Regístrate en
-                                <a href="https://www.google.com/recaptcha/admin" target="_blank">
-                                    https://www.google.com/recaptcha/admin
-                                </a>
-                            </li>
+                            <li>Regístrate en <a href="https://www.google.com/recaptcha/admin" target="_blank">https://www.google.com/recaptcha/admin</a></li>
                             <li>Selecciona reCAPTCHA v2 "Checkbox"</li>
                             <li>Agrega los dominios de tu sitio</li>
                             <li>Copia las claves generadas a los campos de arriba</li>
@@ -52,10 +48,10 @@
     </record>
 
     <!-- Menú para la configuración de reCAPTCHA -->
-    <menuitem id="menu_recaptcha_config"
-              name="reCAPTCHA"
-              parent="base.menu_settings"
-              action="action_recaptcha_config"
-              sequence="20"
-              groups="base.group_system"/>
+    <menuitem id="menu_recaptcha_config" 
+        name="reCAPTCHA" 
+        parent="menu_security_settings" 
+        action="action_recaptcha_config" 
+        sequence="20" 
+        groups="base.group_system"/>
 </odoo>
