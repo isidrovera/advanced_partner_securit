@@ -1,22 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
     <!-- Extender el formulario estándar de signup para ajustar estilos y añadir reCAPTCHA -->
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
 
-        <!-- Ajustar contenedor principal -->
-        <xpath expr="//div[contains(@class,'oe_signup_container')]" position="attributes">
-            <attribute name="class" add=" col-12 col-md-10 col-lg-8 mx-auto "/>
-        </xpath>
-
         <!-- Ajustar el formulario (ancho centrado) -->
-        <xpath expr="//form[hasclass('oe_signup_form')]" position="attributes">
+        <xpath expr="//form[contains(@class,'oe_signup_form')]" position="attributes">
             <attribute name="style">max-width: 600px; margin: auto;</attribute>
         </xpath>
 
         <!-- Insertar reCAPTCHA dentro del formulario -->
-        <xpath expr="//form[hasclass('oe_signup_form')]" position="inside">
+        <xpath expr="//form[contains(@class,'oe_signup_form')]" position="inside">
             <!-- Bloque reCAPTCHA solo si está configurado y habilitado -->
-            <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config() 
+            <t t-if="request.env['auth_signup_security.recaptcha_config'].sudo().get_config()
                      and request.env['auth_signup_security.recaptcha_config'].sudo().get_config().is_enabled">
                 <div class="mb-3 field-captcha">
                     <label class="form-label">Verificación de Seguridad</label>
@@ -47,7 +43,7 @@
         </xpath>
     </template>
 
-    <!-- Página de términos y condiciones (una sola definición en todo el módulo) -->
+    <!-- Página de términos y condiciones (usa solo UNA definición de este id en todo el módulo) -->
     <template id="terms_page" name="Términos y Condiciones">
         <t t-call="website.layout">
             <div class="container mt-4 mb-5">
@@ -124,4 +120,5 @@
             </div>
         </t>
     </template>
+
 </odoo>
