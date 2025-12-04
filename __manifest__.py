@@ -15,8 +15,7 @@
     'website': 'https://www.tuempresa.com',
     'depends': ['base', 'web', 'mail', 'auth_signup'],
     'data': [
-        'security/ir.model.access.csv',
-        'views/ip_registration.xml',
+        'security/ir.model.access.csv',        
         'data/system_parameters.xml',
         'views/partner_views.xml',        
         'views/signup_verification.xml',
