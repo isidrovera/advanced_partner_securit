@@ -54,7 +54,7 @@
     <!-- Menú para la configuración de reCAPTCHA -->
     <menuitem id="menu_recaptcha_config"
               name="reCAPTCHA"
-              parent="menu_security_settings"
+              parent="base.menu_settings"
               action="action_recaptcha_config"
               sequence="20"
               groups="base.group_system"/>
