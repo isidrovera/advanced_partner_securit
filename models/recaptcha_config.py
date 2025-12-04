@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
-# models/recaptcha_config.py
-
-from odoo import models, fields, api
+from odoo import models, fields
 
 class RecaptchaConfig(models.Model):
     _name = 'auth_signup_security.recaptcha_config'
-    _description = 'Configuración de reCAPTCHA'
-    
-    site_key = fields.Char(string='Clave del sitio', required=True)
-    secret_key = fields.Char(string='Clave secreta', required=True)
-    is_enabled = fields.Boolean(string='Habilitado', default=True)
-    
-    @api.model
+    _description = 'Configuración de reCAPTCHA para registro'
+
+    name = fields.Char(string="Nombre", default="Configuración reCAPTCHA", required=True)
+    site_key = fields.Char(string="Site Key", required=True)
+    secret_key = fields.Char(string="Secret Key", required=True)
+    is_enabled = fields.Boolean(string="Activado", default=True)
+
+    # Útil si quieres tener varios registros pero solo uno activo
+    active = fields.Boolean(string="Activo", default=True)
+
     def get_config(self):
-        """Obtiene la configuración activa de reCAPTCHA"""
-        config = self.search([], limit=1)
-        if not config:
-            return None
+        """Devuelve el registro activo a usar por el controlador"""
+        config = self.search([('active', '=', True)], limit=1)
         return config
