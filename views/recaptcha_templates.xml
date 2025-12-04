@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Fix opcional de providers de auth_oauth -->
-    <template id="providers_fix" inherit_id="auth_oauth.providers">
-        <xpath expr="//em[contains(@t-attf-class, 'my-#{len(providers)')]" position="attributes">
-            <attribute name="t-attf-class">
-                d-block text-center text-muted small my-#{len(providers) if providers else 3}
-            </attribute>
-        </xpath>
-    </template>
-
     <!-- Extender el formulario estándar de signup para ajustar estilos y añadir reCAPTCHA -->
     <template id="signup_fields_extended" inherit_id="auth_signup.signup">
 
@@ -56,7 +47,7 @@
         </xpath>
     </template>
 
-    <!-- Página de términos y condiciones (usa solo UNA definición en todo el módulo) -->
+    <!-- Página de términos y condiciones (una sola definición en todo el módulo) -->
     <template id="terms_page" name="Términos y Condiciones">
         <t t-call="website.layout">
             <div class="container mt-4 mb-5">
