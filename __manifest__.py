@@ -16,14 +16,14 @@
     'depends': ['base', 'web', 'mail', 'auth_signup'],
     'data': [
         'security/ir.model.access.csv',        
-        'data/system_parameters.xml',
+        #'data/system_parameters.xml',
         'views/partner_views.xml',        
-        'views/signup_verification.xml',
-        'data/mail_template_data.xml',
-        'data/ir_cron.xml',
-        'views/recaptcha_views.xml',
-        'views/recaptcha_templates.xml',        
-        'data/recaptcha_data.xml',
+        #'views/signup_verification.xml',
+        #'data/mail_template_data.xml',
+        #'data/ir_cron.xml',
+        #'views/recaptcha_views.xml',
+        #'views/recaptcha_templates.xml',        
+        #'data/recaptcha_data.xml',
     ],
     'assets': {
         'web.assets_frontend': [
